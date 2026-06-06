@@ -1,0 +1,8 @@
+백엔드 실행 방법
+(Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ;
+.\venv\Scripts\activate   
+python -m uvicorn backend.core.main:app --reload --reload-dir backend
+
+
+프론트엔드 실행 방법
+npm run dev
