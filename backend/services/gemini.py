@@ -1,0 +1,115 @@
+"""
+Gemini AI를 이용한 종목 분석 및 Q&A.
+google-genai SDK (2.x) 사용. 모델 할당량 초과 시 순서대로 fallback.
+"""
+import json
+import re
+from google import genai
+from google.genai.errors import ClientError
+
+from backend.core.config import settings
+
+_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-flash-latest",
+    "gemini-3.1-flash-lite",
+]
+
+_STYLE_MAP = {
+    "lowPER": "저PER 가치투자",
+    "lowPBR": "저PBR 자산가치",
+    "highROE": "고ROE 수익성",
+    "value": "가치투자",
+    "quality": "퀄리티",
+}
+_HORIZON_MAP = {"short": "단기(3개월 이내)", "mid": "중기(6~12개월)", "long": "장기(1년 이상)"}
+_RISK_MAP = {"low": "보수적", "medium": "중립적", "high": "공격적"}
+
+
+def _client() -> genai.Client:
+    return genai.Client(api_key=settings.GEMINI_API_KEY)
+
+
+def _generate(prompt: str) -> str:
+    """모델 fallback 포함 텍스트 생성."""
+    client = _client()
+    last_err: Exception | None = None
+    for model in _MODELS:
+        try:
+            response = client.models.generate_content(model=model, contents=prompt)
+            return response.text.strip()
+        except ClientError as e:
+            if e.status_code == 429:
+                last_err = e
+                continue
+            raise
+    raise RuntimeError(f"모든 Gemini 모델 할당량 초과: {last_err}")
+
+
+def analyze_stock(
+    ticker: str,
+    user_profile: dict,
+    macro: dict,
+    financial: dict,
+    dart: dict,
+    news_articles: list[dict],
+    price: float,
+) -> dict:
+    style = ", ".join(_STYLE_MAP.get(s, s) for s in user_profile.get("preferred_style", []))
+    horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
+    risk = _RISK_MAP.get(user_profile.get("risk_tolerance", "medium"), "중립적")
+
+    news_text = "\n".join(f"- {a['title']}" for a in news_articles[:3]) or "뉴스 없음"
+    risk_text = ", ".join(dart.get("risk_flags", [])) or "없음"
+    highlights_text = "\n".join(f"- {h}" for h in dart.get("highlights", [])) or "없음"
+
+    prompt = f"""당신은 한국 주식 투자 AI 애널리스트입니다. 아래 데이터를 종합하여 {ticker} 종목을 분석하세요.
+
+[투자자 프로필]
+리스크 선호: {risk} | 투자 스타일: {style or "없음"} | 투자 기간: {horizon}
+
+[거시경제]
+USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macro.get("policy_rate", "N/A")}% | 미국 기준금리: {macro.get("fed_funds_rate", "N/A")}% | 인플레이션(YoY): {macro.get("inflation_yoy", "N/A")}%
+
+[재무]
+현재가: {price:,.0f}원 | PER: {financial.get("per", "N/A")} | PBR: {financial.get("pbr", "N/A")} | ROE: {financial.get("roe", "N/A")}%
+
+[DART 공시 하이라이트]
+{highlights_text}
+
+[DART 리스크 공시]
+{risk_text}
+
+[최근 뉴스]
+{news_text}
+
+반드시 아래 JSON 형식만 응답하세요 (마크다운 없이):
+{{"score": 0.0~1.0 숫자, "summary": "2~3문장 한국어 종합 의견", "reasons": ["근거1", "근거2", "근거3"]}}"""
+
+    try:
+        text = _generate(prompt)
+        text = re.sub(r"```json\s*", "", text)
+        text = re.sub(r"```\s*$", "", text)
+        return json.loads(text)
+    except Exception:
+        return {
+            "score": 0.5,
+            "summary": f"{ticker} 분석 데이터를 수집했습니다. AI 분석 중 오류가 발생했습니다.",
+            "reasons": ["데이터 수집 완료", "AI 분석 재시도 필요"],
+        }
+
+
+def answer_question(ticker: str, question: str, context_summary: str = "") -> str:
+    ctx = f"\n[분석 컨텍스트]\n{context_summary}" if context_summary else ""
+    prompt = f"""당신은 한국 주식 투자 전문가 AI입니다.{ctx}
+
+종목 {ticker}에 관한 질문에 한국어로 명확하고 간결하게 답변하세요.
+
+질문: {question}"""
+
+    try:
+        return _generate(prompt)
+    except Exception:
+        return "답변을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
