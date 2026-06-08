@@ -25,6 +25,8 @@ import { Input } from "@/components/ui/input";
 import { fetchMacro } from "@/lib/api";
 import type { MacroSnapshot } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
+import { WatchlistPage } from "@/components/WatchlistPage";
+import { ProfilePage } from "@/components/ProfilePage";
 import { useSearchContext } from "./layout";
 
 const watchlist = [
@@ -43,18 +45,24 @@ const signals = [
 export default function Page() {
   const [macro, setMacro] = useState<MacroSnapshot | null>(null);
   const [localInput, setLocalInput] = useState("");
-  const { 
-    screenResult, 
-    screenLoading, 
-    screenError, 
-    lastTicker, 
-    handleTickerSearch, 
-    setLastTicker 
+  const {
+    screenResult,
+    screenLoading,
+    screenError,
+    lastTicker,
+    handleTickerSearch,
+    setLastTicker,
+    clearResult,
+    activeNav,
   } = useSearchContext();
 
-  // 네트워크 에러 발생 시 경고창 띄우기
   useEffect(() => {
-    if (screenError && (screenError.includes("getaddrinfo") || screenError.includes("11001") || screenError.includes("인터넷 연결"))) {
+    if (
+      screenError &&
+      (screenError.includes("getaddrinfo") ||
+        screenError.includes("11001") ||
+        screenError.includes("인터넷 연결"))
+    ) {
       alert("인터넷 연결을 확인해주세요. (데이터 수집 서버 연결 실패)");
     }
   }, [screenError]);
@@ -89,19 +97,31 @@ export default function Page() {
     };
   }, []);
 
+  // 탭 라우팅
+  if (activeNav === "watchlist") return <WatchlistPage />;
+  if (activeNav === "profile") return <ProfilePage />;
+
   const marketCards = [
     {
       label: "KOSPI",
       value: macro?.kospi
-        ? macro.kospi.price.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        ? macro.kospi.price.toLocaleString("ko-KR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
         : "—",
-      change: macro?.kospi ? `${macro.kospi.change_rate >= 0 ? "+" : ""}${macro.kospi.change_rate.toFixed(2)}%` : "—",
+      change: macro?.kospi
+        ? `${macro.kospi.change_rate >= 0 ? "+" : ""}${macro.kospi.change_rate.toFixed(2)}%`
+        : "—",
       positive: macro?.kospi ? macro.kospi.positive : true,
     },
     {
       label: "KOSDAQ",
       value: macro?.kosdaq
-        ? macro.kosdaq.price.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        ? macro.kosdaq.price.toLocaleString("ko-KR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
         : "—",
       change: macro?.kosdaq
         ? `${macro.kosdaq.change_rate >= 0 ? "+" : ""}${macro.kosdaq.change_rate.toFixed(2)}%`
@@ -111,7 +131,10 @@ export default function Page() {
     {
       label: "USD/KRW",
       value: macro?.usd_krw
-        ? macro.usd_krw.price.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        ? macro.usd_krw.price.toLocaleString("ko-KR", {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })
         : "—",
       change: macro?.usd_krw
         ? `${macro.usd_krw.change_rate >= 0 ? "+" : ""}${macro.usd_krw.change_rate.toFixed(2)}%`
@@ -120,7 +143,8 @@ export default function Page() {
     },
   ];
 
-  const hasResult = !screenLoading && !screenError && screenResult && screenResult.results.length > 0;
+  const hasResult =
+    !screenLoading && !screenError && screenResult && screenResult.results.length > 0;
   const showDashboard = !screenLoading && !screenResult && !screenError;
 
   return (
@@ -153,17 +177,23 @@ export default function Page() {
             <Button variant="outline" size="icon" className="h-10 w-10 border-slate-200 bg-white">
               <Bell className="h-4 w-4" />
             </Button>
-            <Button className="h-10 bg-slate-950 px-4 text-white hover:bg-slate-800">
+            <Button
+              className="h-10 bg-slate-950 px-4 text-white hover:bg-slate-800"
+              onClick={() => clearResult?.()}
+            >
               <Sparkles className="h-4 w-4" />
               새 분석 시작
             </Button>
           </div>
         </header>
 
-        {/* ── 시장 지수 카드 — 항상 표시 ── */}
+        {/* ── 시장 지수 카드 ── */}
         <section className="grid gap-3 md:grid-cols-3">
           {marketCards.map((card) => (
-            <div key={card.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div
+              key={card.label}
+              className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-slate-500">{card.label}</span>
                 {card.change !== "—" && (
@@ -191,9 +221,12 @@ export default function Page() {
           <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-slate-200 bg-white py-20 shadow-sm">
             <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
             <p className="text-sm font-semibold text-slate-500">
-              <span className="font-bold text-slate-950">{lastTicker}</span> 종목을 AI가 분석 중입니다...
+              <span className="font-bold text-slate-950">{lastTicker}</span> 종목을 AI가 분석
+              중입니다...
             </p>
-            <p className="text-xs text-slate-400">거시경제, 재무지표, 공시 데이터를 수집하고 있습니다.</p>
+            <p className="text-xs text-slate-400">
+              거시경제, 재무지표, 공시 데이터를 수집하고 있습니다.
+            </p>
           </div>
         )}
 
@@ -217,7 +250,7 @@ export default function Page() {
           </main>
         )}
 
-        {/* ── 기본 대시보드 (검색 전 상태) ── */}
+        {/* ── 기본 대시보드 (검색 전) ── */}
         {showDashboard && (
           <main className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
             <section className="space-y-6">
@@ -228,7 +261,9 @@ export default function Page() {
                       <BrainCircuit className="h-5 w-5 text-slate-700" />
                       AI 추천 우선순위
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">관심 종목을 점수와 리스크 기준으로 정렬했습니다.</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      관심 종목을 점수와 리스크 기준으로 정렬했습니다.
+                    </p>
                   </div>
                   <form onSubmit={onLocalSearch} className="flex w-full max-w-sm gap-2">
                     <Input
@@ -237,10 +272,10 @@ export default function Page() {
                       onChange={(e) => setLocalInput(e.target.value)}
                       className="h-10 border-slate-200 bg-white"
                     />
-                    <Button 
-                      type="submit" 
-                      variant="outline" 
-                      size="icon" 
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="icon"
                       disabled={screenLoading}
                       className="h-10 w-10 border-slate-200 bg-white"
                     >
@@ -269,8 +304,13 @@ export default function Page() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-base font-bold text-slate-950">{item.name}</span>
-                            <span className="text-sm font-semibold text-slate-400">{item.ticker}</span>
-                            <Badge variant="outline" className="border-slate-200 bg-white text-slate-500">
+                            <span className="text-sm font-semibold text-slate-400">
+                              {item.ticker}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="border-slate-200 bg-white text-slate-500"
+                            >
                               {item.tag}
                             </Badge>
                           </div>
@@ -282,14 +322,21 @@ export default function Page() {
                           <p className="text-xs font-semibold text-slate-400">AI Score</p>
                           <div className="mt-2 flex items-center gap-2">
                             <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-200">
-                              <div className="h-full rounded-full bg-slate-950" style={{ width: `${item.score}%` }} />
+                              <div
+                                className="h-full rounded-full bg-slate-950"
+                                style={{ width: `${item.score}%` }}
+                              />
                             </div>
                             <span className="text-sm font-bold text-slate-950">{item.score}</span>
                           </div>
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-slate-400">오늘 변동</p>
-                          <p className={`mt-1 text-sm font-bold ${isPositive ? "text-rose-600" : "text-blue-600"}`}>
+                          <p
+                            className={`mt-1 text-sm font-bold ${
+                              isPositive ? "text-rose-600" : "text-blue-600"
+                            }`}
+                          >
                             {item.change}
                           </p>
                         </div>
@@ -301,11 +348,26 @@ export default function Page() {
 
               <div className="grid gap-4 lg:grid-cols-3">
                 {[
-                  { icon: ShieldCheck, title: "리스크 필터", text: "공시 리스크와 뉴스 악재를 자동으로 묶어 확인합니다." },
-                  { icon: Activity, title: "가격 모멘텀", text: "단기 추세와 거래대금 변화를 함께 추적합니다." },
-                  { icon: CalendarClock, title: "이벤트 캘린더", text: "실적 발표와 주요 경제 일정을 분석에 반영합니다." },
+                  {
+                    icon: ShieldCheck,
+                    title: "리스크 필터",
+                    text: "공시 리스크와 뉴스 악재를 자동으로 묶어 확인합니다.",
+                  },
+                  {
+                    icon: Activity,
+                    title: "가격 모멘텀",
+                    text: "단기 추세와 거래대금 변화를 함께 추적합니다.",
+                  },
+                  {
+                    icon: CalendarClock,
+                    title: "이벤트 캘린더",
+                    text: "실적 발표와 주요 경제 일정을 분석에 반영합니다.",
+                  },
                 ].map((item) => (
-                  <div key={item.title} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                  <div
+                    key={item.title}
+                    className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+                  >
                     <item.icon className="h-5 w-5 text-slate-700" />
                     <h3 className="mt-4 text-sm font-bold text-slate-950">{item.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-500">{item.text}</p>
@@ -321,7 +383,8 @@ export default function Page() {
                   <LineChart className="h-5 w-5 text-slate-300" />
                 </div>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
-                  현재 장세는 금리 민감도보다 실적 가시성과 수급 집중도가 더 크게 작동하는 구간입니다.
+                  현재 장세는 금리 민감도보다 실적 가시성과 수급 집중도가 더 크게 작동하는
+                  구간입니다.
                 </p>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-white/10 p-3">
@@ -368,7 +431,10 @@ export default function Page() {
                         <span className="font-bold text-slate-950">{value}</span>
                       </div>
                       <div className="h-2 rounded-full bg-slate-100">
-                        <div className="h-full rounded-full bg-slate-950" style={{ width: `${value}%` }} />
+                        <div
+                          className="h-full rounded-full bg-slate-950"
+                          style={{ width: `${value}%` }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -381,7 +447,8 @@ export default function Page() {
                   다음 액션
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-500">
-                  좌측 사이드바 검색창에 종목 코드를 입력하면 AI가 실시간으로 분석 리포트를 생성합니다.
+                  좌측 사이드바 검색창에 종목 코드를 입력하면 AI가 실시간으로 분석 리포트를
+                  생성합니다.
                 </p>
               </div>
             </aside>

@@ -1,11 +1,23 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import type { NavItem } from "@/components/AppSidebar";
 import { fetchMacro, screenStocks } from "@/lib/api";
 import type { MacroSnapshot, ScreenResponse } from "@/lib/api";
 import "./globals.css";
+
+export type UserProfileType = {
+  risk_tolerance: "low" | "medium" | "high";
+  preferred_style: Array<"lowPER" | "lowPBR" | "highROE" | "value" | "quality">;
+  horizon: "short" | "mid" | "long";
+};
+
+const DEFAULT_USER_PROFILE: UserProfileType = {
+  risk_tolerance: "medium",
+  preferred_style: ["value", "quality"],
+  horizon: "mid",
+};
 
 export type SearchContextType = {
   screenResult: ScreenResponse | null;
@@ -14,6 +26,11 @@ export type SearchContextType = {
   lastTicker: string;
   handleTickerSearch?: (input: string | React.FormEvent) => Promise<void>;
   setLastTicker?: (val: string) => void;
+  clearResult?: () => void;
+  activeNav: NavItem;
+  setActiveNav: (nav: NavItem) => void;
+  userProfile: UserProfileType;
+  setUserProfile: (profile: UserProfileType) => void;
 };
 
 export const SearchContext = createContext<SearchContextType>({
@@ -21,6 +38,10 @@ export const SearchContext = createContext<SearchContextType>({
   screenLoading: false,
   screenError: null,
   lastTicker: "",
+  activeNav: "analysis",
+  setActiveNav: () => {},
+  userProfile: DEFAULT_USER_PROFILE,
+  setUserProfile: () => {},
 });
 
 export function useSearchContext() {
@@ -40,6 +61,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [screenError, setScreenError] = useState<string | null>(null);
   const [lastTicker, setLastTicker] = useState("");
 
+  const [userProfile, setUserProfileState] = useState<UserProfileType>(DEFAULT_USER_PROFILE);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user_profile");
+    if (stored) {
+      try {
+        setUserProfileState(JSON.parse(stored));
+      } catch {}
+    }
+  }, []);
+
   useEffect(() => {
     async function loadMacro() {
       setMacroLoading(true);
@@ -56,26 +88,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     if (typeof input !== "string") {
       input.preventDefault();
     }
-    
+
     const ticker = typeof input === "string" ? input : tickerInput.trim();
     if (!ticker) return;
 
-    if (typeof input !== "string") setTickerInput(""); // 입력창 초기화
-    
+    if (typeof input !== "string") setTickerInput("");
+
     setSearchLoading(true);
     setScreenLoading(true);
     setScreenError(null);
     setLastTicker(ticker);
+    setActiveNav("analysis");
 
     try {
       const result = await screenStocks({
         id: crypto.randomUUID(),
         tickers: [ticker],
-        user_profile: {
-          risk_tolerance: "medium",
-          preferred_style: ["value", "quality"],
-          horizon: "mid",
-        },
+        user_profile: userProfile,
         preferences: {
           min_score: 0,
           top_k: 1,
@@ -92,13 +121,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   }
 
+  function setUserProfile(profile: UserProfileType) {
+    setUserProfileState(profile);
+    localStorage.setItem("user_profile", JSON.stringify(profile));
+  }
+
+  function clearResult() {
+    setScreenResult(null);
+    setScreenError(null);
+    setLastTicker("");
+  }
+
   return (
     <html lang="ko" className="h-full">
       <body className="h-full overflow-hidden bg-slate-100 text-slate-950 antialiased">
         <div className="flex h-screen w-screen overflow-hidden">
           <AppSidebar
             collapsed={collapsed}
-            onToggleCollapse={() => setCollapsed((value) => !value)}
+            onToggleCollapse={() => setCollapsed((v) => !v)}
             activeNav={activeNav}
             onNavChange={setActiveNav}
             tickerInput={tickerInput}
@@ -108,14 +148,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             macro={macro}
             macroLoading={macroLoading}
           />
-          <SearchContext.Provider value={{ 
-            screenResult, 
-            screenLoading, 
-            screenError, 
-            lastTicker, 
-            handleTickerSearch, 
-            setLastTicker 
-          }}>
+          <SearchContext.Provider
+            value={{
+              screenResult,
+              screenLoading,
+              screenError,
+              lastTicker,
+              handleTickerSearch,
+              setLastTicker,
+              clearResult,
+              activeNav,
+              setActiveNav,
+              userProfile,
+              setUserProfile,
+            }}
+          >
             <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
           </SearchContext.Provider>
         </div>
