@@ -182,15 +182,15 @@ def _get_corp_code(ticker: str) -> str | None:
 
 
 def name_to_ticker(name: str) -> str | None:
-    """종목명 → 티커 코드 변환 (정확한 이름 매칭 우선, 그 다음 포함 검색)."""
+    """종목명 → 티커 코드 변환."""
     q = name.strip().lower()
     if not q:
         return None
-    # 1차: 정확한 이름 매칭
+    # 1차: corp_info_map 정확 매칭
     for stock_code, info in _corp_info_map().items():
         if info.get("name", "").lower() == q:
             return stock_code
-    # 2차: 포함 검색 (가장 짧은 이름 우선 - 더 정확할 가능성)
+    # 2차: corp_info_map 포함 검색
     candidates = [
         (stock_code, info["name"])
         for stock_code, info in _corp_info_map().items()
@@ -199,14 +199,51 @@ def name_to_ticker(name: str) -> str | None:
     if candidates:
         candidates.sort(key=lambda x: len(x[1]))
         return candidates[0][0]
+    # 3차: NAVER search fallback (corp_info_map에 없을 때)
+    try:
+        results = search_stocks(name.strip(), limit=1)
+        if results:
+            return results[0]["ticker"]
+    except Exception:
+        pass
     return None
 
 
+_NAVER_SEARCH_HDRS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Referer": "https://m.stock.naver.com/",
+    "Accept": "application/json",
+}
+
+
 def search_stocks(query: str, limit: int = 10) -> list[dict]:
-    """종목명 또는 티커 코드로 종목 검색. DART 전체 상장 종목 대상."""
+    """종목명/티커 검색 — NAVER front-api 우선, 실패 시 fallback."""
     q = query.strip()
     if not q:
         return []
+
+    # NAVER front-api: 전체 KOSPI/KOSDAQ 종목 실시간 검색
+    try:
+        r = requests.get(
+            "https://m.stock.naver.com/front-api/search",
+            params={"q": q, "target": "stock", "size": limit, "page": 1},
+            headers=_NAVER_SEARCH_HDRS,
+            timeout=5,
+        )
+        if r.ok:
+            data = r.json()
+            items = data.get("result", {}).get("items", [])
+            results = [
+                {"ticker": item["code"], "name": item["name"]}
+                for item in items
+                if item.get("code") and item.get("name")
+            ]
+            if results:
+                return results
+    except Exception:
+        pass
+
+    # fallback: corp_info_map (DART 다운로드 or 하드코딩 120개)
     q_lower = q.lower()
     results = []
     for stock_code, info in _corp_info_map().items():
