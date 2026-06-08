@@ -98,7 +98,32 @@ def _get_usd_krw() -> dict | None:
     except Exception as e:
         print(f"[Macro] Dunamu forex failed: {e}", flush=True)
 
-    # 3차: ExchangeRate-API (완전 무료, API 키 불필요 - 일별 업데이트)
+    # 3차: Yahoo Finance REST API (실시간, 글로벌 접근 가능, API 키 불필요)
+    try:
+        r = requests.get(
+            "https://query1.finance.yahoo.com/v7/finance/quote",
+            params={"symbols": "USDKRW=X"},
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            timeout=8,
+        )
+        if r.ok:
+            results = r.json().get("quoteResponse", {}).get("result", [])
+            if results:
+                d = results[0]
+                price = d.get("regularMarketPrice")
+                if price and float(price) > 100:
+                    change_val = float(d.get("regularMarketChange") or 0)
+                    change_rate = float(d.get("regularMarketChangePercent") or 0)
+                    return {
+                        "price": round(float(price), 2),
+                        "change_val": round(change_val, 2),
+                        "change_rate": round(change_rate, 2),
+                        "positive": change_val >= 0,
+                    }
+    except Exception as e:
+        print(f"[Macro] Yahoo forex failed: {e}", flush=True)
+
+    # 4차: ExchangeRate-API (완전 무료, API 키 불필요 - 일별 업데이트)
     try:
         r = requests.get("https://open.er-api.com/v6/latest/USD", timeout=8)
         if r.ok:
