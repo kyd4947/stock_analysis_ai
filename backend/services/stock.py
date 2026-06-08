@@ -41,6 +41,8 @@ def get_stock_data(ticker: str) -> dict:
         "per": None,
         "pbr": None,
         "roe": None,
+        "eps": None,
+        "bps": None,
     }
 
     try:
@@ -66,19 +68,34 @@ def get_stock_data(ticker: str) -> dict:
             }
         )
 
-        # totalInfos에서 PER/PBR/ROE 추출
+        # totalInfos에서 PER/PBR/ROE/EPS/BPS 추출
         for item in data.get("totalInfos", []):
             code = (item.get("code") or "").upper()
-            raw = str(item.get("value") or "").replace("배", "").replace("%", "")
-            val = _num(raw)
-            if val is None:
-                continue
-            if code == "PER":
-                result["per"] = round(val, 2)
-            elif code == "PBR":
-                result["pbr"] = round(val, 2)
-            elif code == "ROE":
-                result["roe"] = round(val, 2)
+            raw = str(item.get("value") or "").replace("배", "").replace("%", "").replace(",", "")
+            if code in ("PER", "PBR", "BPS"):
+                val = _num(raw)
+                if val is None:
+                    continue
+                if code == "PER":
+                    result["per"] = round(val, 2)
+                elif code == "PBR":
+                    result["pbr"] = round(val, 2)
+                elif code == "BPS":
+                    result["bps"] = round(val, 2)
+            elif code in ("ROE", "EPS"):
+                # ROE/EPS는 음수 가능 → _signed 사용
+                val = _signed(raw)
+                if val is None:
+                    continue
+                if code == "ROE":
+                    result["roe"] = round(val, 2)
+                elif code == "EPS":
+                    result["eps"] = round(val, 2)
+
+        # EPS/BPS로 ROE 계산 (totalInfos에 ROE 코드가 없을 때)
+        if result["roe"] is None and result["eps"] is not None and result["bps"] and result["bps"] > 0:
+            result["roe"] = round(result["eps"] / result["bps"] * 100, 2)
+            print(f"[Stock/{result['ticker']}] ROE calculated from EPS/BPS: {result['roe']}", flush=True)
 
     except Exception:
         pass
