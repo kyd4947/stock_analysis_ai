@@ -306,11 +306,11 @@ def get_dart_financials(ticker: str) -> dict:
         except ValueError:
             continue
 
-        if nm in ("당기순이익", "분기순이익") and net_income is None:
+        if nm in ("당기순이익", "분기순이익", "당기순이익(손실)", "분기순이익(손실)", "당기순손익") and net_income is None:
             net_income = val
-        elif nm in ("자본총계", "자본") and equity is None:
+        elif nm in ("자본총계", "자본합계", "연결자본총계") and equity is None:
             equity = val
-        elif ("기본주당순이익" in nm or nm == "주당순이익") and eps is None:
+        elif ("기본주당순이익" in nm or nm == "주당순이익" or "주당순이익(손실)" in nm) and eps is None:
             eps = val
         elif "주당순자산" in nm and bps is None:
             bps = val
