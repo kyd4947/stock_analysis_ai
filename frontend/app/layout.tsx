@@ -84,12 +84,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     loadMacro();
   }, []);
 
+  // 한글 종목명 → 티커 변환 맵
+  const KR_NAME_TO_TICKER: Record<string, string> = {
+    "삼성전자": "005930", "sk하이닉스": "000660", "SK하이닉스": "000660",
+    "하이닉스": "000660", "naver": "035420", "NAVER": "035420", "네이버": "035420",
+    "삼성바이오로직스": "207940", "현대자동차": "005380", "현대차": "005380",
+    "lg화학": "051910", "LG화학": "051910", "삼성sdi": "006400", "삼성SDI": "006400",
+    "카카오": "035720", "기아": "000270", "kb금융": "105560", "KB금융": "105560",
+    "신한지주": "055550", "sk이노베이션": "096770", "SK이노베이션": "096770",
+    "lg": "003550", "LG": "003550", "sk텔레콤": "017670", "SK텔레콤": "017670",
+    "kt": "030200", "KT": "030200", "셀트리온": "068270", "kakao": "035720",
+    "포스코홀딩스": "005490", "포스코": "005490", "현대모비스": "012330",
+    "lg전자": "066570", "LG전자": "066570", "삼성물산": "028260",
+  };
+
   async function handleTickerSearch(input: string | React.FormEvent) {
     if (typeof input !== "string") {
       input.preventDefault();
     }
 
-    const ticker = typeof input === "string" ? input : tickerInput.trim();
+    const raw = typeof input === "string" ? input : tickerInput.trim();
+    if (!raw) return;
+
+    // 한글 이름이면 티커로 변환, 아니면 그대로 대문자로 정규화
+    const ticker = KR_NAME_TO_TICKER[raw] ?? KR_NAME_TO_TICKER[raw.toLowerCase()] ?? raw.trim();
     if (!ticker) return;
 
     if (typeof input !== "string") setTickerInput("");

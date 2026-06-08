@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from backend.services.stock import get_stock_data
 from backend.services.macro_service import get_macro_snapshot
-from backend.services.dart import get_dart_disclosures, get_shareholders
+from backend.services.dart import get_dart_disclosures, get_shareholders, get_dart_financials
 from backend.services.news import get_stock_news
 from backend.services import gemini as gemini_svc
 
@@ -39,17 +39,31 @@ async def _process_ticker(
     min_score: float,
     loop: asyncio.AbstractEventLoop,
 ) -> dict | None:
-    stock, dart, shareholders, news_articles = await asyncio.gather(
+    stock, dart, shareholders, news_articles, dart_fin = await asyncio.gather(
         loop.run_in_executor(None, get_stock_data, ticker),
         loop.run_in_executor(None, get_dart_disclosures, ticker),
         loop.run_in_executor(None, get_shareholders, ticker),
         loop.run_in_executor(None, get_stock_news, ticker),
+        loop.run_in_executor(None, get_dart_financials, ticker),
     )
 
+    # yfinance가 재무지표를 제공하지 않으면 DART 재무제표로 보완
+    price = stock.get("price") or 0
+    per = stock.get("per")
+    pbr = stock.get("pbr")
+    roe = stock.get("roe")
+
+    if per is None and dart_fin.get("eps") and price and dart_fin["eps"] > 0:
+        per = round(price / dart_fin["eps"], 2)
+    if pbr is None and dart_fin.get("bps") and price and dart_fin["bps"] > 0:
+        pbr = round(price / dart_fin["bps"], 2)
+    if roe is None and dart_fin.get("roe") is not None:
+        roe = dart_fin["roe"]
+
     financial = {
-        "per": stock.get("per") or 0.0,
-        "pbr": stock.get("pbr") or 0.0,
-        "roe": stock.get("roe") or 0.0,
+        "per": per or 0.0,
+        "pbr": pbr or 0.0,
+        "roe": roe or 0.0,
     }
 
     analysis = await loop.run_in_executor(

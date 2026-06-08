@@ -79,6 +79,66 @@ def get_dart_disclosures(ticker: str) -> dict:
     return {"risk_flags": risk_flags[:3], "highlights": highlights[:3]}
 
 
+def get_dart_financials(ticker: str) -> dict:
+    """DART 재무제표에서 ROE, EPS, BPS를 조회해 PER/PBR 계산에 활용."""
+    corp_code = _get_corp_code(ticker)
+    if not corp_code or not settings.DART_API_KEY:
+        return {}
+
+    year = datetime.date.today().year - 1
+    data = None
+    for reprt_code in ["11011", "11014", "11013"]:  # 연간 → Q3 → Q2 순 fallback
+        try:
+            r = requests.get(
+                "https://opendart.fss.or.kr/api/fnlttSinglAcnt.json",
+                params={
+                    "crtfc_key": settings.DART_API_KEY,
+                    "corp_code": corp_code,
+                    "bsns_year": str(year),
+                    "reprt_code": reprt_code,
+                    "fs_div": "CFS",
+                },
+                timeout=15,
+            )
+            if r.ok:
+                d = r.json()
+                if d.get("status") == "000" and d.get("list"):
+                    data = d
+                    break
+        except Exception:
+            continue
+
+    if not data:
+        return {}
+
+    net_income = equity = eps = bps = None
+    for item in data.get("list", []):
+        nm = item.get("account_nm", "").strip()
+        raw = (item.get("thstrm_amount") or "").replace(",", "").strip()
+        try:
+            val = float(raw)
+        except ValueError:
+            continue
+
+        if nm in ("당기순이익", "분기순이익") and net_income is None:
+            net_income = val
+        elif nm in ("자본총계", "자본") and equity is None:
+            equity = val
+        elif ("기본주당순이익" in nm or nm == "주당순이익") and eps is None:
+            eps = val
+        elif "주당순자산" in nm and bps is None:
+            bps = val
+
+    result: dict = {}
+    if net_income is not None and equity and equity > 0:
+        result["roe"] = round(net_income / equity * 100, 2)
+    if eps is not None:
+        result["eps"] = eps
+    if bps is not None and bps > 0:
+        result["bps"] = bps
+    return result
+
+
 def get_shareholders(ticker: str) -> list[dict]:
     corp_code = _get_corp_code(ticker)
     if not corp_code:
