@@ -31,6 +31,8 @@ export type SearchContextType = {
   setActiveNav: (nav: NavItem) => void;
   userProfile: UserProfileType;
   setUserProfile: (profile: UserProfileType) => void;
+  macro: MacroSnapshot | null;
+  macroLoading: boolean;
 };
 
 export const SearchContext = createContext<SearchContextType>({
@@ -42,6 +44,8 @@ export const SearchContext = createContext<SearchContextType>({
   setActiveNav: () => {},
   userProfile: DEFAULT_USER_PROFILE,
   setUserProfile: () => {},
+  macro: null,
+  macroLoading: false,
 });
 
 export function useSearchContext() {
@@ -81,6 +85,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       }
     }
     loadMacro();
+    const id = setInterval(loadMacro, 15_000);
+    return () => clearInterval(id);
   }, []);
 
   async function handleTickerSearch(input: string | React.FormEvent) {
@@ -172,6 +178,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               setActiveNav,
               userProfile,
               setUserProfile,
+              macro,
+              macroLoading,
             }}
           >
             <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>

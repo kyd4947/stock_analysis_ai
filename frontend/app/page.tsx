@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { fetchMacro, fetchMarketNews, fetchMarketInsight } from "@/lib/api";
-import type { MacroSnapshot, MarketInsight } from "@/lib/api";
+import { fetchMarketNews, fetchMarketInsight } from "@/lib/api";
+import type { MarketInsight } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
 import { ProfilePage } from "@/components/ProfilePage";
@@ -63,7 +63,6 @@ const signals = [
 type NewsArticle = { title: string; url: string; source: string; publishedAt?: string };
 
 export default function Page() {
-  const [macro, setMacro] = useState<MacroSnapshot | null>(null);
   const [dashboardItems, setDashboardItems] = useState<DashboardItem[]>(SAMPLE_ITEMS);
   const [marketNews, setMarketNews] = useState<NewsArticle[]>([]);
   const [marketInsight, setMarketInsight] = useState<MarketInsight | null>(null);
@@ -76,6 +75,7 @@ export default function Page() {
     setLastTicker,
     clearResult,
     activeNav,
+    macro,
   } = useSearchContext();
 
   // localStorage 관심 종목 → 대시보드 목록 동기화
@@ -138,23 +138,6 @@ export default function Page() {
   }, [screenResult]);
 
 
-  useEffect(() => {
-    let active = true;
-    async function loadMacroData() {
-      try {
-        const data = await fetchMacro();
-        if (active) setMacro(data);
-      } catch (err) {
-        console.error("Failed to fetch macro data in dashboard:", err);
-      }
-    }
-    loadMacroData();
-    const interval = setInterval(loadMacroData, 15000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, []);
 
   // 탭 라우팅
   if (activeNav === "watchlist") return <WatchlistPage />;

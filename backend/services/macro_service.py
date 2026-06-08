@@ -52,7 +52,7 @@ def _get_usd_krw() -> dict | None:
         r = requests.get(
             "https://m.stock.naver.com/api/forex/FX_USDKRW/basic",
             headers=_NAVER_HEADERS,
-            timeout=8,
+            timeout=6,
         )
         if r.ok:
             data = r.json()
@@ -66,9 +66,9 @@ def _get_usd_krw() -> dict | None:
                 change_rate = float(str(rate_raw).replace(",", ""))
                 print(f"[Macro] USD/KRW OK (NAVER): {price}", flush=True)
                 return {"price": round(price, 2), "change_val": round(change_val, 2), "change_rate": round(change_rate, 2), "positive": change_val >= 0}
-        print(f"[Macro/NAVER] fail status={r.status_code} body={r.text[:80]}", flush=True)
+        print(f"[Macro/NAVER] fail {r.status_code}", flush=True)
     except Exception as e:
-        print(f"[Macro/NAVER] exception: {e}", flush=True)
+        print(f"[Macro/NAVER] {e}", flush=True)
 
     # 2차: Dunamu(Upbit) CDN API - 실시간
     try:
@@ -76,7 +76,7 @@ def _get_usd_krw() -> dict | None:
             "https://quotation-api-cdn.dunamu.com/v1/forex/recent",
             params={"codes": "FRX.KRWUSD"},
             headers={"User-Agent": "Mozilla/5.0"},
-            timeout=8,
+            timeout=6,
         )
         if r.ok:
             items = r.json()
@@ -88,45 +88,84 @@ def _get_usd_krw() -> dict | None:
                     change_rate_raw = float(d.get("signedChangeRate") or 0)
                     print(f"[Macro] USD/KRW OK (Dunamu): {price}", flush=True)
                     return {"price": round(float(price), 2), "change_val": round(change_val, 2), "change_rate": round(change_rate_raw * 100, 2), "positive": change_val >= 0}
-            print(f"[Macro/Dunamu] fail body={r.text[:80]}", flush=True)
-        else:
-            print(f"[Macro/Dunamu] fail status={r.status_code}", flush=True)
+        print(f"[Macro/Dunamu] fail {r.status_code} {r.text[:60]}", flush=True)
     except Exception as e:
-        print(f"[Macro/Dunamu] exception: {e}", flush=True)
+        print(f"[Macro/Dunamu] {e}", flush=True)
 
-    # 3차: Yahoo Finance v8 chart API - 쿠키 세션 방식
+    # 3차: Yahoo Finance quoteSummary v10 (글로벌, API 키 불필요)
     try:
-        session = requests.Session()
-        session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "application/json,text/plain,*/*",
-        })
-        session.get("https://finance.yahoo.com", timeout=5)  # 쿠키 획득
-        r = session.get("https://query1.finance.yahoo.com/v8/finance/chart/USDKRW=X", timeout=8)
+        r = requests.get(
+            "https://query1.finance.yahoo.com/v10/finance/quoteSummary/USDKRW=X",
+            params={"modules": "price"},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                "Accept": "application/json",
+            },
+            timeout=6,
+        )
         if r.ok:
-            meta = (r.json().get("chart") or {}).get("result", [{}])[0].get("meta", {})
+            price_data = (r.json().get("quoteSummary") or {}).get("result", [{}])[0].get("price", {})
+            price = (price_data.get("regularMarketPrice") or {}).get("raw")
+            if price and float(price) > 100:
+                change_val = float((price_data.get("regularMarketChange") or {}).get("raw") or 0)
+                change_rate = float((price_data.get("regularMarketChangePercent") or {}).get("raw") or 0)
+                print(f"[Macro] USD/KRW OK (Yahoo quoteSummary): {price}", flush=True)
+                return {"price": round(float(price), 2), "change_val": round(change_val, 2), "change_rate": round(change_rate * 100, 2), "positive": change_val >= 0}
+        print(f"[Macro/Yahoo-qs] fail {r.status_code} {r.text[:60]}", flush=True)
+    except Exception as e:
+        print(f"[Macro/Yahoo-qs] {e}", flush=True)
+
+    # 4차: Yahoo Finance v8 chart API
+    try:
+        r = requests.get(
+            "https://query2.finance.yahoo.com/v8/finance/chart/USDKRW=X",
+            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36", "Accept": "application/json"},
+            timeout=6,
+        )
+        if r.ok:
+            meta = ((r.json().get("chart") or {}).get("result") or [{}])[0].get("meta", {})
             price = meta.get("regularMarketPrice")
             if price and float(price) > 100:
                 prev = meta.get("previousClose") or meta.get("chartPreviousClose") or price
                 change_val = round(float(price) - float(prev), 2)
                 change_rate = round(change_val / float(prev) * 100, 2) if prev else 0.0
-                print(f"[Macro] USD/KRW OK (Yahoo): {price}", flush=True)
+                print(f"[Macro] USD/KRW OK (Yahoo chart): {price}", flush=True)
                 return {"price": round(float(price), 2), "change_val": change_val, "change_rate": change_rate, "positive": change_val >= 0}
-        print(f"[Macro/Yahoo] fail status={r.status_code} body={r.text[:80]}", flush=True)
+        print(f"[Macro/Yahoo-chart] fail {r.status_code} {r.text[:60]}", flush=True)
     except Exception as e:
-        print(f"[Macro/Yahoo] exception: {e}", flush=True)
+        print(f"[Macro/Yahoo-chart] {e}", flush=True)
 
-    # 4차: ExchangeRate-API (최후 수단, 24시간 업데이트)
-    # NOTE: FRED DEXKOUS는 주별 업데이트라 오래된 데이터 반환 → 제외
+    # 5차: stooq.com CSV (당일 데이터, 글로벌 접근, API 키 불필요)
     try:
-        r = requests.get("https://open.er-api.com/v6/latest/USD", timeout=8)
+        r = requests.get(
+            "https://stooq.com/q/d/l/",
+            params={"s": "usdkrw.fx", "i": "d"},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=6,
+        )
+        if r.ok and r.text.strip():
+            lines = [l for l in r.text.strip().split("\n") if l.strip()]
+            if len(lines) >= 2:
+                cols = lines[-1].split(",")
+                if len(cols) >= 5:
+                    close = float(cols[4])
+                    if close > 100:
+                        print(f"[Macro] USD/KRW OK (stooq): {close}", flush=True)
+                        return {"price": round(close, 2), "change_val": 0.0, "change_rate": 0.0, "positive": True}
+        print(f"[Macro/stooq] fail {r.status_code} {r.text[:60]}", flush=True)
+    except Exception as e:
+        print(f"[Macro/stooq] {e}", flush=True)
+
+    # 6차: ExchangeRate-API (최후 수단, 24시간 업데이트)
+    try:
+        r = requests.get("https://open.er-api.com/v6/latest/USD", timeout=6)
         if r.ok:
             krw = r.json().get("rates", {}).get("KRW")
             if krw:
                 print(f"[Macro] USD/KRW fallback (ExchangeRate-API): {krw}", flush=True)
                 return {"price": round(float(krw), 2), "change_val": 0.0, "change_rate": 0.0, "positive": True}
     except Exception as e:
-        print(f"[Macro/ExchangeRate] exception: {e}", flush=True)
+        print(f"[Macro/ExchangeRate] {e}", flush=True)
 
     return None
 
