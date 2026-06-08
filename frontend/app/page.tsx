@@ -356,11 +356,6 @@ export default function Page() {
                                   {item.tag}
                                 </Badge>
                               )}
-                              {!item.isFromWatchlist && (
-                                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-600 text-xs">
-                                  샘플
-                                </Badge>
-                              )}
                             </div>
                             <p className="mt-1 text-xs text-slate-400">
                               클릭하면 AI 분석을 실행합니다.

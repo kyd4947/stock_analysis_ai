@@ -109,6 +109,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         },
       });
       setScreenResult(result);
+      // 결과가 오면 헤더를 숫자 코드 대신 종목명으로 업데이트
+      if (result.results.length > 0 && result.results[0].name) {
+        setLastTicker(result.results[0].name);
+      }
     } catch (error) {
       console.error("Ticker screen failed:", error);
       const isConnErr =

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from backend.services.stock import get_stock_data
 from backend.services.macro_service import get_macro_snapshot
-from backend.services.dart import get_dart_disclosures, get_shareholders, get_dart_financials
+from backend.services.dart import get_dart_disclosures, get_shareholders, get_dart_financials, name_to_ticker
 from backend.services.news import get_stock_news
 from backend.services import gemini as gemini_svc
 
@@ -32,6 +32,15 @@ class ScreenRequest(BaseModel):
     preferences: Preferences = Preferences()
 
 
+def _resolve_ticker(ticker: str) -> str:
+    """종목명(한글) → 티커 코드 변환. 숫자 코드면 그대로 반환."""
+    stripped = ticker.strip()
+    if stripped.isdigit():
+        return stripped
+    found = name_to_ticker(stripped)
+    return found if found else stripped
+
+
 async def _process_ticker(
     ticker: str,
     user_profile: dict,
@@ -39,6 +48,7 @@ async def _process_ticker(
     min_score: float,
     loop: asyncio.AbstractEventLoop,
 ) -> dict | None:
+    ticker = _resolve_ticker(ticker)
     stock, dart, shareholders, news_articles, dart_fin = await asyncio.gather(
         loop.run_in_executor(None, get_stock_data, ticker),
         loop.run_in_executor(None, get_dart_disclosures, ticker),
