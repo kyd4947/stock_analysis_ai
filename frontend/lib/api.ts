@@ -15,7 +15,10 @@ export type ScreenRequest = {
 
 export type StockScreenResult = {
   ticker: string;
+  name?: string;
   score: number;
+  signal?: "BUY" | "SELL" | "HOLD";
+  signal_reason?: string;
   summary: string;
   reasons: string[];
   price?: number;
@@ -126,6 +129,22 @@ export async function fetchMacro(): Promise<MacroSnapshot> {
   } catch (error) {
     console.warn("Macro fetch failed:", error);
     return {};
+  }
+}
+
+export async function fetchMarketNews(): Promise<
+  Array<{ title: string; url: string; source: string; publishedAt?: string }>
+> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/market-news`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.articles ?? [];
+  } catch {
+    return [];
   }
 }
 

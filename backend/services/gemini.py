@@ -86,7 +86,7 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 {news_text}
 
 반드시 아래 JSON 형식만 응답하세요 (마크다운 없이):
-{{"score": 0.0~1.0 숫자, "summary": "2~3문장 한국어 종합 의견", "reasons": ["근거1", "근거2", "근거3"]}}"""
+{{"score": 0.0~1.0 숫자, "signal": "BUY 또는 SELL 또는 HOLD", "signal_reason": "매수/매도/보류 판단 핵심 근거 1~2문장", "summary": "2~3문장 한국어 종합 의견", "reasons": ["근거1", "근거2", "근거3"]}}"""
 
     try:
         text = _generate(prompt)
@@ -96,6 +96,8 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
     except Exception:
         return {
             "score": 0.5,
+            "signal": "HOLD",
+            "signal_reason": "AI 분석 중 오류가 발생했습니다. 데이터를 재수집 후 다시 시도해주세요.",
             "summary": f"{ticker} 분석 데이터를 수집했습니다. AI 분석 중 오류가 발생했습니다.",
             "reasons": ["데이터 수집 완료", "AI 분석 재시도 필요"],
         }

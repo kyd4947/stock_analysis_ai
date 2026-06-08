@@ -13,6 +13,8 @@ import {
   MessageSquare,
   Newspaper,
   Send,
+  TrendingDown,
+  TrendingUp,
   Users,
   X,
 } from "lucide-react";
@@ -38,6 +40,28 @@ function scoreMeta(score: number) {
   if (score >= 0.6)
     return { label: "Medium", className: "bg-amber-50 text-amber-700 border-amber-100" };
   return { label: "Low", className: "bg-rose-50 text-rose-700 border-rose-100" };
+}
+
+function SignalBadge({ signal, reason }: { signal?: string; reason?: string }) {
+  if (!signal) return null;
+  const meta = {
+    BUY:  { label: "매수", icon: TrendingUp,   bg: "bg-emerald-500", text: "text-white" },
+    SELL: { label: "매도", icon: TrendingDown,  bg: "bg-rose-500",    text: "text-white" },
+    HOLD: { label: "관망", icon: Info,           bg: "bg-slate-700",   text: "text-white" },
+  }[signal] ?? { label: signal, icon: Info, bg: "bg-slate-200", text: "text-slate-700" };
+
+  const Icon = meta.icon;
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+      <div className="flex items-center gap-3">
+        <div className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${meta.bg} ${meta.text}`}>
+          <Icon className="h-4 w-4" />
+          {meta.label} 시그널
+        </div>
+        {reason && <p className="text-sm text-slate-600">{reason}</p>}
+      </div>
+    </div>
+  );
 }
 
 export function StockScreenCard({ item, compact = false, onSelect }: StockScreenCardProps) {
@@ -125,9 +149,14 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <CardTitle className="truncate text-2xl font-bold tracking-tight text-slate-950">
+              {item.name && (
+                <CardTitle className="truncate text-2xl font-bold tracking-tight text-slate-950">
+                  {item.name}
+                </CardTitle>
+              )}
+              <span className={`font-semibold ${item.name ? "text-base text-slate-400" : "text-2xl font-bold text-slate-950"}`}>
                 {item.ticker}
-              </CardTitle>
+              </span>
               <a
                 href={`https://finance.naver.com/item/main.naver?code=${item.ticker}`}
                 target="_blank"
@@ -167,6 +196,9 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
       </CardHeader>
 
       <CardContent className="space-y-5">
+
+        {/* 매수/매도 시그널 */}
+        <SignalBadge signal={item.signal} reason={item.signal_reason} />
 
         {/* AI 분석 요약 */}
         <section className="space-y-2">

@@ -22,15 +22,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchMacro } from "@/lib/api";
+import { fetchMacro, fetchMarketNews } from "@/lib/api";
 import type { MacroSnapshot } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
 import { ProfilePage } from "@/components/ProfilePage";
+import { PortfolioPage } from "@/components/PortfolioPage";
 import { useSearchContext } from "./layout";
 
 type DashboardItem = {
   ticker: string;
+  name?: string;
   score?: number;
   change?: string;
   price?: number;
@@ -38,11 +40,19 @@ type DashboardItem = {
   isFromWatchlist?: boolean;
 };
 
+const KR_STOCK_NAMES: Record<string, string> = {
+  "005930": "삼성전자", "000660": "SK하이닉스", "035420": "NAVER",
+  "207940": "삼성바이오로직스", "005380": "현대자동차", "051910": "LG화학",
+  "006400": "삼성SDI", "035720": "카카오", "000270": "기아",
+  "105560": "KB금융", "055550": "신한지주", "096770": "SK이노베이션",
+  "003550": "LG", "017670": "SK텔레콤", "030200": "KT",
+};
+
 const SAMPLE_ITEMS: DashboardItem[] = [
-  { ticker: "005930", score: undefined, tag: "반도체" },
-  { ticker: "000660", score: undefined, tag: "AI 메모리" },
-  { ticker: "035420", score: undefined, tag: "플랫폼" },
-  { ticker: "207940", score: undefined, tag: "바이오" },
+  { ticker: "005930", name: "삼성전자", tag: "반도체" },
+  { ticker: "000660", name: "SK하이닉스", tag: "AI 메모리" },
+  { ticker: "035420", name: "NAVER", tag: "플랫폼" },
+  { ticker: "207940", name: "삼성바이오로직스", tag: "바이오" },
 ];
 
 const signals = [
@@ -51,10 +61,13 @@ const signals = [
   "최근 뉴스 감성은 반도체, 전력 인프라, 바이오 CDMO 쪽으로 강하게 기울어 있습니다.",
 ];
 
+type NewsArticle = { title: string; url: string; source: string; publishedAt?: string };
+
 export default function Page() {
   const [macro, setMacro] = useState<MacroSnapshot | null>(null);
   const [localInput, setLocalInput] = useState("");
   const [dashboardItems, setDashboardItems] = useState<DashboardItem[]>(SAMPLE_ITEMS);
+  const [marketNews, setMarketNews] = useState<NewsArticle[]>([]);
   const {
     screenResult,
     screenLoading,
@@ -77,6 +90,7 @@ export default function Page() {
           setDashboardItems(
             items.map((item) => ({
               ticker: item.ticker,
+              name: KR_STOCK_NAMES[item.ticker],
               score: item.lastScore !== undefined ? Math.round(item.lastScore * 100) : undefined,
               price: item.lastPrice,
               tag: item.lastSector,
@@ -90,6 +104,13 @@ export default function Page() {
     setDashboardItems(SAMPLE_ITEMS);
   }, []);
 
+  // 시장 뉴스 로드 (5분마다 갱신)
+  useEffect(() => {
+    fetchMarketNews().then(setMarketNews);
+    const id = setInterval(() => fetchMarketNews().then(setMarketNews), 300_000);
+    return () => clearInterval(id);
+  }, []);
+
   // 분석 결과가 돌아오면 해당 종목 캐시 업데이트
   useEffect(() => {
     if (!screenResult) return;
@@ -99,6 +120,7 @@ export default function Page() {
         if (!r) return item;
         return {
           ...item,
+          name: r.name ?? item.name ?? KR_STOCK_NAMES[item.ticker],
           score: Math.round(r.score * 100),
           price: r.price,
           tag: r.sector ?? item.tag,
@@ -143,6 +165,7 @@ export default function Page() {
 
   // 탭 라우팅
   if (activeNav === "watchlist") return <WatchlistPage />;
+  if (activeNav === "portfolio") return <PortfolioPage />;
   if (activeNav === "profile") return <ProfilePage />;
 
   const marketCards = [
@@ -349,7 +372,12 @@ export default function Page() {
                         >
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-base font-bold text-slate-950">{item.ticker}</span>
+                              {item.name && (
+                                <span className="text-base font-bold text-slate-950">{item.name}</span>
+                              )}
+                              <span className={`text-sm font-semibold ${item.name ? "text-slate-400" : "text-base font-bold text-slate-950"}`}>
+                                {item.ticker}
+                              </span>
                               {item.tag && (
                                 <Badge variant="outline" className="border-slate-200 bg-white text-slate-500">
                                   {item.tag}
@@ -462,15 +490,33 @@ export default function Page() {
               <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
                   <TrendingUp className="h-5 w-5" />
-                  핵심 시그널
+                  실시간 시장 뉴스
                 </h2>
-                <div className="mt-4 space-y-3">
-                  {signals.map((signal) => (
-                    <div key={signal} className="flex gap-3 rounded-lg bg-slate-50 p-3">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      <p className="text-sm leading-6 text-slate-600">{signal}</p>
-                    </div>
-                  ))}
+                <div className="mt-4 space-y-2">
+                  {marketNews.length > 0 ? (
+                    marketNews.map((article, i) => (
+                      <a
+                        key={i}
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex gap-3 rounded-lg bg-slate-50 p-3 hover:bg-slate-100 transition-colors"
+                      >
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                        <div className="min-w-0">
+                          <p className="text-sm leading-5 text-slate-700 line-clamp-2">{article.title}</p>
+                          <p className="mt-1 text-xs text-slate-400">{article.source}</p>
+                        </div>
+                      </a>
+                    ))
+                  ) : (
+                    signals.map((signal) => (
+                      <div key={signal} className="flex gap-3 rounded-lg bg-slate-50 p-3">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                        <p className="text-sm leading-6 text-slate-600">{signal}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 

@@ -16,14 +16,14 @@ import {
   Settings2,
   Sparkles,
   Star,
-  User,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { MacroSnapshot } from "@/lib/api";
 
-export type NavItem = "profile" | "analysis" | "watchlist";
+export type NavItem = "analysis" | "watchlist" | "portfolio" | "profile";
 
 type AppSidebarProps = {
   collapsed: boolean;
@@ -42,7 +42,7 @@ type AppSidebarProps = {
 const NAV_ITEMS: { id: NavItem; label: string; helper: string; icon: React.ElementType }[] = [
   { id: "analysis", label: "실시간 분석", helper: "종목과 거시지표", icon: LineChart },
   { id: "watchlist", label: "관심 종목", helper: "추적 리스트", icon: Star },
-  { id: "profile", label: "투자 프로필", helper: "성향과 전략", icon: User },
+  { id: "portfolio", label: "내 포트폴리오", helper: "보유 종목 현황", icon: Wallet },
 ];
 
 function formatNumber(value?: number, digits = 1) {

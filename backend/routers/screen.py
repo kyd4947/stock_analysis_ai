@@ -71,7 +71,10 @@ async def _process_ticker(
 
     return {
         "ticker": ticker,
+        "name": stock.get("name") or ticker,
         "score": score,
+        "signal": analysis.get("signal", "HOLD"),
+        "signal_reason": analysis.get("signal_reason", ""),
         "summary": analysis.get("summary", ""),
         "reasons": analysis.get("reasons", []),
         "price": stock.get("price"),

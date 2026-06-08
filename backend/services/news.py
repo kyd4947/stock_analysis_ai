@@ -66,3 +66,41 @@ def get_stock_news(ticker: str, company_name: str = "") -> list[dict]:
         pass
 
     return []
+
+
+def get_market_news() -> list[dict]:
+    """한국 주식 시장 전반 뉴스를 수집."""
+    key = settings.NEWS_API_KEY
+    if not key:
+        return []
+
+    try:
+        r = requests.get(
+            "https://newsapi.org/v2/everything",
+            params={
+                "q": "코스피 OR 코스닥 OR 한국증시 OR 주식시장",
+                "language": "ko",
+                "sortBy": "publishedAt",
+                "pageSize": 6,
+                "apiKey": key,
+            },
+            timeout=8,
+        )
+        if r.ok and r.json().get("status") == "ok":
+            articles = r.json().get("articles", [])
+            result = [
+                {
+                    "title": a.get("title", ""),
+                    "url": a.get("url", ""),
+                    "source": a.get("source", {}).get("name", ""),
+                    "publishedAt": a.get("publishedAt", ""),
+                }
+                for a in articles
+                if a.get("title") and "[Removed]" not in a.get("title", "")
+            ]
+            if result:
+                return result[:6]
+    except Exception:
+        pass
+
+    return []

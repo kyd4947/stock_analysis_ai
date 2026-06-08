@@ -8,6 +8,7 @@ import yfinance as yf
 def get_stock_data(ticker: str) -> dict:
     result = {
         "ticker": ticker,
+        "name": None,
         "price": None,
         "change_rate": None,
         "change_value": None,
@@ -37,6 +38,7 @@ def get_stock_data(ticker: str) -> dict:
 
             result.update(
                 {
+                    "name": info.get("longName") or info.get("shortName") or ticker,
                     "price": round(price),
                     "change_rate": round(change_rate, 2),
                     "change_value": round(change_val),
