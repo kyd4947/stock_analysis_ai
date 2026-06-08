@@ -75,10 +75,12 @@ async def _process_ticker(
     if roe is None:
         roe = naver_fin.get("roe")
 
-    if per is None and dart_fin.get("eps") and price and dart_fin["eps"] > 0:
-        per = round(price / dart_fin["eps"], 2)
-    if pbr is None and dart_fin.get("bps") and price and dart_fin["bps"] > 0:
-        pbr = round(price / dart_fin["bps"], 2)
+    eps = dart_fin.get("eps")
+    bps = dart_fin.get("bps")
+    if per is None and eps and price and eps > 0:
+        per = round(price / eps, 2)
+    if pbr is None and bps and price and bps > 0:
+        pbr = round(price / bps, 2)
     if roe is None and dart_fin.get("roe") is not None:
         roe = dart_fin["roe"]
 

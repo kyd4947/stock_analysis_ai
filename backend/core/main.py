@@ -8,9 +8,16 @@ from backend.routers import screen, macro, chat, search
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 서버 시작 시 DART corp_code 캐시를 백그라운드에서 미리 로드
+    # 서버 시작 시 DART corp_code 캐시를 완전히 로드한 뒤 요청 수락
+    # (60초 제한: 타임아웃 시 폴백으로 계속)
     loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, _warmup_dart)
+    try:
+        await asyncio.wait_for(
+            loop.run_in_executor(None, _warmup_dart),
+            timeout=65,
+        )
+    except asyncio.TimeoutError:
+        pass
     yield
 
 

@@ -4,7 +4,7 @@ DART API 연동.
 다운로드 실패 시 하드코딩 주요 종목으로 폴백 (검색 즉시 동작).
 """
 import io
-import time
+import threading
 import zipfile
 import xml.etree.ElementTree as ET
 import datetime
@@ -123,54 +123,52 @@ _FALLBACK_STOCKS: dict[str, dict] = {
     "215000": {"corp_code": "", "name": "골프존"},
 }
 
-# 모듈 레벨 캐시 (lru_cache 대신 사용 - 빈 결과 캐싱 방지)
-_corp_info: dict[str, dict] = {}
-_corp_info_loaded = False
-_corp_info_last_attempt = 0.0
+# 모듈 레벨 캐시 - threading.Lock으로 동시 다운로드 방지
+_corp_info: dict[str, dict] | None = None
+_corp_info_lock = threading.Lock()
 
 
 def _corp_info_map() -> dict[str, dict]:
-    """DART corp_code.zip → stock_code:{corp_code,name} 매핑. 실패 시 폴백 반환."""
-    global _corp_info, _corp_info_loaded, _corp_info_last_attempt
+    """DART corp_code.zip → stock_code:{corp_code,name} 매핑.
+    첫 호출 시 동기 다운로드(Lock). 이후 캐시 반환. 실패 시 폴백."""
+    global _corp_info
 
-    if _corp_info_loaded:
+    if _corp_info is not None:
         return _corp_info
 
-    now = time.time()
-    # 이미 폴백 데이터라도 있고 5분 이내 재시도면 그대로 반환
-    if _corp_info and (now - _corp_info_last_attempt) < 300:
-        return _corp_info
+    with _corp_info_lock:
+        # Lock 획득 후 다시 확인 (다른 스레드가 이미 완료했을 수 있음)
+        if _corp_info is not None:
+            return _corp_info
 
-    _corp_info_last_attempt = now
-    result: dict[str, dict] = dict(_FALLBACK_STOCKS)
+        result: dict[str, dict] = dict(_FALLBACK_STOCKS)
 
-    if settings.DART_API_KEY:
-        try:
-            r = requests.get(
-                "https://opendart.fss.or.kr/api/corpCode.zip",
-                params={"crtfc_key": settings.DART_API_KEY},
-                timeout=60,
-            )
-            r.raise_for_status()
-            with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-                with z.open("CORPCODE.xml") as f:
-                    tree = ET.parse(f)
-            mapping: dict[str, dict] = {}
-            for item in tree.getroot().findall("list"):
-                stock_code = (item.findtext("stock_code") or "").strip()
-                corp_code = (item.findtext("corp_code") or "").strip()
-                corp_name = (item.findtext("corp_name") or "").strip()
-                if stock_code:
-                    mapping[stock_code] = {"corp_code": corp_code, "name": corp_name}
-            if mapping:
-                result.update(mapping)
-                _corp_info_loaded = True  # 성공 시에만 완전 로드 표시
-        except Exception:
-            pass
-    else:
-        _corp_info_loaded = True  # API 키 없으면 재시도 불필요
+        if settings.DART_API_KEY:
+            try:
+                r = requests.get(
+                    "https://opendart.fss.or.kr/api/corpCode.zip",
+                    params={"crtfc_key": settings.DART_API_KEY},
+                    timeout=60,
+                )
+                r.raise_for_status()
+                with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+                    with z.open("CORPCODE.xml") as f:
+                        tree = ET.parse(f)
+                mapping: dict[str, dict] = {}
+                for item in tree.getroot().findall("list"):
+                    stock_code = (item.findtext("stock_code") or "").strip()
+                    corp_code = (item.findtext("corp_code") or "").strip()
+                    corp_name = (item.findtext("corp_name") or "").strip()
+                    if stock_code:
+                        mapping[stock_code] = {"corp_code": corp_code, "name": corp_name}
+                if mapping:
+                    result.update(mapping)
+            except Exception:
+                pass
 
-    _corp_info = result
+        # 성공이든 실패든 캐시에 저장 (폴백이라도 항상 있음)
+        _corp_info = result
+
     return _corp_info
 
 
@@ -269,28 +267,32 @@ def get_dart_financials(ticker: str) -> dict:
     if not corp_code or not settings.DART_API_KEY:
         return {}
 
-    year = datetime.date.today().year - 1
+    current_year = datetime.date.today().year
     data = None
-    for reprt_code in ["11011", "11014", "11013"]:  # 연간 → Q3 → Q2 순 fallback
-        try:
-            r = requests.get(
-                "https://opendart.fss.or.kr/api/fnlttSinglAcnt.json",
-                params={
-                    "crtfc_key": settings.DART_API_KEY,
-                    "corp_code": corp_code,
-                    "bsns_year": str(year),
-                    "reprt_code": reprt_code,
-                    "fs_div": "CFS",
-                },
-                timeout=15,
-            )
-            if r.ok:
-                d = r.json()
-                if d.get("status") == "000" and d.get("list"):
-                    data = d
-                    break
-        except Exception:
-            continue
+    # 최근 연도부터 최대 2년치 시도 (연간 → Q3 → Q2 순)
+    for year in [current_year - 1, current_year - 2]:
+        if data:
+            break
+        for reprt_code in ["11011", "11014", "11013"]:
+            try:
+                r = requests.get(
+                    "https://opendart.fss.or.kr/api/fnlttSinglAcnt.json",
+                    params={
+                        "crtfc_key": settings.DART_API_KEY,
+                        "corp_code": corp_code,
+                        "bsns_year": str(year),
+                        "reprt_code": reprt_code,
+                        "fs_div": "CFS",
+                    },
+                    timeout=15,
+                )
+                if r.ok:
+                    d = r.json()
+                    if d.get("status") == "000" and d.get("list"):
+                        data = d
+                        break
+            except Exception:
+                continue
 
     if not data:
         return {}
