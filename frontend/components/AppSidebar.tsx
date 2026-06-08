@@ -29,6 +29,7 @@ type AppSidebarProps = {
   onToggleCollapse: () => void;
   activeNav: NavItem;
   onNavChange: (nav: NavItem) => void;
+  onLogoClick?: () => void;
   onTickerSearch: (ticker: string) => void;
   searchLoading: boolean;
   macro: MacroSnapshot | null;
@@ -133,6 +134,7 @@ export function AppSidebar({
   onToggleCollapse,
   activeNav,
   onNavChange,
+  onLogoClick,
   onTickerSearch,
   searchLoading,
   macro,
@@ -148,7 +150,7 @@ export function AppSidebar({
     >
       <button
         type="button"
-        onClick={() => onNavChange("analysis")}
+        onClick={() => onLogoClick ? onLogoClick() : onNavChange("analysis")}
         className={cn("flex w-full items-center gap-3 px-3 py-4 transition-opacity hover:opacity-75", collapsed && "justify-center")}
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-sm">

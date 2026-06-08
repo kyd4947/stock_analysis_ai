@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowDownRight,
@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { fetchMarketNews, fetchMarketInsight } from "@/lib/api";
+import { fetchMarketNews, fetchMarketInsight, screenStocks as screenStocksApi } from "@/lib/api";
 import type { MarketInsight } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
@@ -64,8 +64,10 @@ type NewsArticle = { title: string; url: string; source: string; publishedAt?: s
 
 export default function Page() {
   const [dashboardItems, setDashboardItems] = useState<DashboardItem[]>(SAMPLE_ITEMS);
+  const [dashboardAutoLoading, setDashboardAutoLoading] = useState(false);
   const [marketNews, setMarketNews] = useState<NewsArticle[]>([]);
   const [marketInsight, setMarketInsight] = useState<MarketInsight | null>(null);
+  const autoFetchedKeyRef = useRef<string>("");
   const {
     screenResult,
     screenLoading,
@@ -75,6 +77,7 @@ export default function Page() {
     setLastTicker,
     clearResult,
     activeNav,
+    userProfile,
     macro,
   } = useSearchContext();
 
@@ -102,6 +105,61 @@ export default function Page() {
     } catch {}
     setDashboardItems(SAMPLE_ITEMS);
   }, []);
+
+  // AI 시장 해석 → 추천 종목으로 대시보드 갱신 (관심 종목 없을 때만)
+  useEffect(() => {
+    if (!marketInsight?.recommended_tickers?.length) return;
+    setDashboardItems((prev) => {
+      if (prev.some((item) => item.isFromWatchlist)) return prev;
+      return marketInsight.recommended_tickers!.map((t) => ({
+        ticker: t.ticker,
+        name: t.name,
+        tag: t.sector,
+      }));
+    });
+  }, [marketInsight]);
+
+  // 대시보드 티커 목록이 바뀔 때 가격/AI 스코어 자동 로드
+  const dashboardTickerKey = useMemo(
+    () => dashboardItems.map((i) => i.ticker).join(","),
+    [dashboardItems]
+  );
+
+  useEffect(() => {
+    if (!dashboardTickerKey || dashboardTickerKey === autoFetchedKeyRef.current) return;
+    autoFetchedKeyRef.current = dashboardTickerKey;
+
+    setDashboardAutoLoading(true);
+    const tickers = dashboardTickerKey.split(",");
+    screenStocksApi({
+      id: crypto.randomUUID(),
+      tickers,
+      user_profile: userProfile,
+      preferences: { min_score: 0, top_k: tickers.length, require_liquidity: true },
+    })
+      .then((result) => {
+        setDashboardItems((prev) =>
+          prev.map((item) => {
+            const r = result.results.find((s) => s.ticker === item.ticker);
+            if (!r) return item;
+            return {
+              ...item,
+              name: r.name ?? item.name ?? KR_STOCK_NAMES[item.ticker],
+              score: Math.round(r.score * 100),
+              price: r.price,
+              tag: r.sector ?? item.tag,
+              change:
+                r.change_rate !== undefined
+                  ? `${r.change_rate >= 0 ? "+" : ""}${r.change_rate.toFixed(1)}%`
+                  : item.change,
+            };
+          })
+        );
+      })
+      .catch((e) => console.error("[Dashboard] Auto-fetch failed:", e))
+      .finally(() => setDashboardAutoLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboardTickerKey]);
 
   // 시장 뉴스 로드 (5분마다 갱신)
   useEffect(() => {
@@ -303,9 +361,14 @@ export default function Page() {
                     <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
                       <BrainCircuit className="h-5 w-5 text-slate-700" />
                       AI 추천 우선순위
+                      {dashboardAutoLoading && (
+                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                      )}
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      관심 종목을 점수와 리스크 기준으로 정렬했습니다.
+                      {dashboardAutoLoading
+                        ? "AI가 실시간으로 데이터를 불러오는 중입니다..."
+                        : "관심 종목을 점수와 리스크 기준으로 정렬했습니다."}
                     </p>
                   </div>
                   <StockSearchBox
@@ -353,9 +416,15 @@ export default function Page() {
 
                           <div>
                             <p className="text-xs font-semibold text-slate-400">현재가</p>
-                            <p className="mt-1 text-sm font-bold text-slate-950">
-                              {item.price ? item.price.toLocaleString("ko-KR") + "원" : "—"}
-                            </p>
+                            {item.price ? (
+                              <p className="mt-1 text-sm font-bold text-slate-950">
+                                {item.price.toLocaleString("ko-KR")}원
+                              </p>
+                            ) : dashboardAutoLoading ? (
+                              <Loader2 className="mt-1.5 h-4 w-4 animate-spin text-slate-300" />
+                            ) : (
+                              <p className="mt-1 text-sm text-slate-400">—</p>
+                            )}
                           </div>
 
                           <div>
@@ -370,6 +439,8 @@ export default function Page() {
                                 </div>
                                 <span className="text-sm font-bold text-slate-950">{item.score}</span>
                               </div>
+                            ) : dashboardAutoLoading ? (
+                              <Loader2 className="mt-1.5 h-4 w-4 animate-spin text-slate-300" />
                             ) : (
                               <p className="mt-1 text-sm text-slate-400">—</p>
                             )}
@@ -381,6 +452,8 @@ export default function Page() {
                               <p className={`mt-1 text-sm font-bold ${isPositive ? "text-rose-600" : "text-blue-600"}`}>
                                 {item.change}
                               </p>
+                            ) : dashboardAutoLoading ? (
+                              <Loader2 className="mt-1.5 h-4 w-4 animate-spin text-slate-300" />
                             ) : (
                               <p className="mt-1 text-sm text-slate-400">—</p>
                             )}

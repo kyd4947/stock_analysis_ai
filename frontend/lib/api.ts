@@ -153,6 +153,7 @@ export type MarketInsight = {
   risk_appetite: string;
   recommended_weight: number;
   sectors: Array<{ name: string; score: number }>;
+  recommended_tickers?: Array<{ ticker: string; name: string; sector: string }>;
   generated_at?: string | null;
 };
 

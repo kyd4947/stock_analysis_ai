@@ -37,6 +37,13 @@ def _fallback() -> dict:
             {"name": "IT/플랫폼", "score": 70},
             {"name": "에너지/화학", "score": 50},
         ],
+        "recommended_tickers": [
+            {"ticker": "005930", "name": "삼성전자", "sector": "반도체"},
+            {"ticker": "000660", "name": "SK하이닉스", "sector": "AI메모리"},
+            {"ticker": "035420", "name": "NAVER", "sector": "플랫폼"},
+            {"ticker": "207940", "name": "삼성바이오로직스", "sector": "바이오"},
+            {"ticker": "005380", "name": "현대차", "sector": "자동차"},
+        ],
         "generated_at": None,
     }
 
@@ -68,8 +75,17 @@ USD/KRW: {f"{usd_krw:,.1f}" if usd_krw else "N/A"}
 한국 인플레이션(YoY): {f"{inflation}%" if inflation else "N/A"}
 미국 10년 국채금리: {f"{us_10y}%" if us_10y else "N/A"}
 
+[참고 종목 목록 - 실제 코스피/코스닥 상장 종목 (이 중에서만 추천)]
+삼성전자(005930), SK하이닉스(000660), NAVER(035420), 카카오(035720),
+현대차(005380), 기아(000270), LG화학(051910), 삼성SDI(006400),
+삼성바이오로직스(207940), 셀트리온(068270), KB금융(105560), 신한지주(055550),
+POSCO홀딩스(005490), LG전자(066570), SK이노베이션(096770), 에코프로비엠(247540),
+크래프톤(259960), 카카오뱅크(323410), 고려아연(010130), 현대모비스(012330),
+한국전력(015760), 삼성물산(028260), LG에너지솔루션(373220), HD현대일렉트릭(267260)
+
+오늘의 시장 상황(KOSPI/KOSDAQ 흐름, 환율, 금리)을 고려하여 주목할 만한 종목 5개를 위 목록에서 선택하세요.
 반드시 아래 JSON 형식만 응답하세요 (마크다운 없이):
-{{"interpretation": "현재 시장 상황을 2~3문장으로 설명. 투자자에게 유용한 실질적 인사이트 포함.", "risk_appetite": "보수적 또는 중립 또는 중립+ 또는 공격적 중 하나", "recommended_weight": 0~100 사이 정수, "sectors": [{{"name": "반도체", "score": 0~100 정수}}, {{"name": "자동차", "score": 0~100 정수}}, {{"name": "금융", "score": 0~100 정수}}, {{"name": "바이오", "score": 0~100 정수}}, {{"name": "IT/플랫폼", "score": 0~100 정수}}, {{"name": "에너지/화학", "score": 0~100 정수}}]}}"""
+{{"interpretation": "현재 시장 상황을 2~3문장으로 설명. 투자자에게 유용한 실질적 인사이트 포함.", "risk_appetite": "보수적 또는 중립 또는 중립+ 또는 공격적 중 하나", "recommended_weight": 0~100 사이 정수, "sectors": [{{"name": "반도체", "score": 0~100 정수}}, {{"name": "자동차", "score": 0~100 정수}}, {{"name": "금융", "score": 0~100 정수}}, {{"name": "바이오", "score": 0~100 정수}}, {{"name": "IT/플랫폼", "score": 0~100 정수}}, {{"name": "에너지/화학", "score": 0~100 정수}}], "recommended_tickers": [{{"ticker": "005930", "name": "삼성전자", "sector": "반도체"}}, {{"ticker": "000660", "name": "SK하이닉스", "sector": "AI메모리"}}, {{"ticker": "035420", "name": "NAVER", "sector": "플랫폼"}}, {{"ticker": "207940", "name": "삼성바이오로직스", "sector": "바이오"}}, {{"ticker": "005380", "name": "현대차", "sector": "자동차"}}]}}"""
 
     text = gemini_svc._generate(prompt)
     text = re.sub(r"```(?:json)?\s*", "", text)

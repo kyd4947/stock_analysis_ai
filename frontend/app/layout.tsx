@@ -54,7 +54,7 @@ export function useSearchContext() {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeNav, setActiveNav] = useState<NavItem>("analysis");
+  const [activeNav, setActiveNavState] = useState<NavItem>("analysis");
   const [searchLoading, setSearchLoading] = useState(false);
   const [macro, setMacro] = useState<MacroSnapshot | null>(null);
   const [macroLoading, setMacroLoading] = useState(false);
@@ -73,7 +73,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         setUserProfileState(JSON.parse(stored));
       } catch {}
     }
+    const savedNav = localStorage.getItem("active_nav") as NavItem | null;
+    const validNavs: NavItem[] = ["analysis", "watchlist", "portfolio", "profile"];
+    if (savedNav && validNavs.includes(savedNav)) {
+      setActiveNavState(savedNav);
+    }
   }, []);
+
+  function setActiveNav(nav: NavItem) {
+    setActiveNavState(nav);
+    localStorage.setItem("active_nav", nav);
+  }
 
   useEffect(() => {
     async function loadMacro() {
@@ -160,6 +170,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             onToggleCollapse={() => setCollapsed((v) => !v)}
             activeNav={activeNav}
             onNavChange={setActiveNav}
+            onLogoClick={() => { clearResult(); setActiveNav("analysis"); }}
             onTickerSearch={handleTickerSearch}
             searchLoading={searchLoading}
             macro={macro}
