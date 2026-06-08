@@ -148,6 +148,27 @@ export async function fetchMarketNews(): Promise<
   }
 }
 
+export type MarketInsight = {
+  interpretation: string;
+  risk_appetite: string;
+  recommended_weight: number;
+  sectors: Array<{ name: string; score: number }>;
+  generated_at?: string | null;
+};
+
+export async function fetchMarketInsight(): Promise<MarketInsight | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/market-insight`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function searchStocks(
   query: string
 ): Promise<Array<{ ticker: string; name: string }>> {

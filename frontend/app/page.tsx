@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { fetchMacro, fetchMarketNews } from "@/lib/api";
-import type { MacroSnapshot } from "@/lib/api";
+import { fetchMacro, fetchMarketNews, fetchMarketInsight } from "@/lib/api";
+import type { MacroSnapshot, MarketInsight } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
 import { ProfilePage } from "@/components/ProfilePage";
@@ -66,6 +66,7 @@ export default function Page() {
   const [macro, setMacro] = useState<MacroSnapshot | null>(null);
   const [dashboardItems, setDashboardItems] = useState<DashboardItem[]>(SAMPLE_ITEMS);
   const [marketNews, setMarketNews] = useState<NewsArticle[]>([]);
+  const [marketInsight, setMarketInsight] = useState<MarketInsight | null>(null);
   const {
     screenResult,
     screenLoading,
@@ -107,6 +108,11 @@ export default function Page() {
     fetchMarketNews().then(setMarketNews);
     const id = setInterval(() => fetchMarketNews().then(setMarketNews), 300_000);
     return () => clearInterval(id);
+  }, []);
+
+  // AI 시장 해석 로드 (매일 8시 갱신 — 서버 캐시 의존)
+  useEffect(() => {
+    fetchMarketInsight().then((data) => { if (data) setMarketInsight(data); });
   }, []);
 
   // 분석 결과가 돌아오면 해당 종목 캐시 업데이트
@@ -440,19 +446,27 @@ export default function Page() {
                   <LineChart className="h-5 w-5 text-slate-300" />
                 </div>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
-                  현재 장세는 금리 민감도보다 실적 가시성과 수급 집중도가 더 크게 작동하는
-                  구간입니다.
+                  {marketInsight?.interpretation ?? "거시경제 데이터를 AI가 분석 중입니다..."}
                 </p>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-white/10 p-3">
                     <p className="text-xs text-slate-300">위험 선호</p>
-                    <p className="mt-1 text-xl font-bold">중립+</p>
+                    <p className="mt-1 text-xl font-bold">
+                      {marketInsight?.risk_appetite ?? "—"}
+                    </p>
                   </div>
                   <div className="rounded-lg bg-white/10 p-3">
                     <p className="text-xs text-slate-300">추천 비중</p>
-                    <p className="mt-1 text-xl font-bold">62%</p>
+                    <p className="mt-1 text-xl font-bold">
+                      {marketInsight ? `${marketInsight.recommended_weight}%` : "—"}
+                    </p>
                   </div>
                 </div>
+                {marketInsight?.generated_at && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    AI 분석 기준: {new Date(marketInsight.generated_at).toLocaleDateString("ko-KR")}
+                  </p>
+                )}
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -494,21 +508,23 @@ export default function Page() {
                   섹터 온도
                 </h2>
                 <div className="mt-4 space-y-3">
-                  {[
-                    ["반도체", 92],
-                    ["자동차", 66],
-                    ["금융", 58],
-                    ["바이오", 73],
-                  ].map(([name, value]) => (
+                  {(marketInsight?.sectors ?? [
+                    { name: "반도체", score: 0 },
+                    { name: "자동차", score: 0 },
+                    { name: "금융", score: 0 },
+                    { name: "바이오", score: 0 },
+                  ]).map(({ name, score }) => (
                     <div key={name}>
                       <div className="mb-1 flex justify-between text-sm">
                         <span className="font-medium text-slate-600">{name}</span>
-                        <span className="font-bold text-slate-950">{value}</span>
+                        <span className="font-bold text-slate-950">
+                          {marketInsight ? score : "—"}
+                        </span>
                       </div>
                       <div className="h-2 rounded-full bg-slate-100">
                         <div
-                          className="h-full rounded-full bg-slate-950"
-                          style={{ width: `${value}%` }}
+                          className="h-full rounded-full bg-slate-950 transition-all duration-700"
+                          style={{ width: `${marketInsight ? score : 0}%` }}
                         />
                       </div>
                     </div>

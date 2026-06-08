@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routers import screen, macro, chat, search
+from backend.routers import screen, macro, chat, search, market_insight
 
 
 @asynccontextmanager
@@ -43,6 +43,7 @@ app.include_router(screen.router, prefix="/api")
 app.include_router(macro.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
+app.include_router(market_insight.router, prefix="/api")
 
 
 @app.get("/")
