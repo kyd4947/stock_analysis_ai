@@ -45,19 +45,22 @@ def _naver_index(index_code: str) -> dict | None:
 
 
 def _get_usd_krw() -> dict | None:
-    """USD/KRW 환율 조회 - NAVER Finance → Dunamu → ExchangeRate-API 순서로 시도."""
-    # 1차: NAVER Finance forex API
+    """USD/KRW 환율 조회 - 여러 소스를 순서대로 시도."""
+
+    # 1차: NAVER Finance forex API (한국 서버에서 실시간)
     try:
         r = requests.get(
             "https://m.stock.naver.com/api/forex/FX_USDKRW/basic",
             headers=_NAVER_HEADERS,
             timeout=8,
         )
+        print(f"[Macro/NAVER] status={r.status_code}", flush=True)
         if r.ok:
             data = r.json()
             raw = data.get("closePrice") or data.get("basePrice") or data.get("rate")
             price_str = str(raw).replace(",", "") if raw else ""
             price = float(price_str) if price_str else None
+            print(f"[Macro/NAVER] price={price}, keys={list(data.keys())[:6]}", flush=True)
             if price and price > 100:
                 change_raw = data.get("compareToPreviousClosePrice") or "0"
                 change_val = float(str(change_raw).replace(",", ""))
@@ -69,11 +72,10 @@ def _get_usd_krw() -> dict | None:
                     "change_rate": round(change_rate, 2),
                     "positive": change_val >= 0,
                 }
-            print(f"[Macro] NAVER forex keys: {list(data.keys())[:8]}", flush=True)
     except Exception as e:
-        print(f"[Macro] NAVER forex failed: {e}", flush=True)
+        print(f"[Macro/NAVER] exception: {e}", flush=True)
 
-    # 2차: Dunamu(Upbit) 환율 API - 실시간, API 키 불필요
+    # 2차: Dunamu(Upbit) CDN API - 실시간, API 키 불필요
     try:
         r = requests.get(
             "https://quotation-api-cdn.dunamu.com/v1/forex/recent",
@@ -81,8 +83,10 @@ def _get_usd_krw() -> dict | None:
             headers={"User-Agent": "Mozilla/5.0"},
             timeout=8,
         )
+        print(f"[Macro/Dunamu] status={r.status_code}", flush=True)
         if r.ok:
             items = r.json()
+            print(f"[Macro/Dunamu] items={items[:1] if items else []}", flush=True)
             if items and isinstance(items, list):
                 d = items[0]
                 price = d.get("basePrice")
@@ -96,34 +100,52 @@ def _get_usd_krw() -> dict | None:
                         "positive": change_val >= 0,
                     }
     except Exception as e:
-        print(f"[Macro] Dunamu forex failed: {e}", flush=True)
+        print(f"[Macro/Dunamu] exception: {e}", flush=True)
 
-    # 3차: Yahoo Finance REST API (실시간, 글로벌 접근 가능, API 키 불필요)
+    # 3차: Yahoo Finance v8 chart API (글로벌 접근, API 키 불필요)
     try:
         r = requests.get(
-            "https://query1.finance.yahoo.com/v7/finance/quote",
-            params={"symbols": "USDKRW=X"},
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            "https://query1.finance.yahoo.com/v8/finance/chart/USDKRW=X",
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            },
             timeout=8,
         )
+        print(f"[Macro/Yahoo] status={r.status_code}", flush=True)
         if r.ok:
-            results = r.json().get("quoteResponse", {}).get("result", [])
-            if results:
-                d = results[0]
-                price = d.get("regularMarketPrice")
-                if price and float(price) > 100:
-                    change_val = float(d.get("regularMarketChange") or 0)
-                    change_rate = float(d.get("regularMarketChangePercent") or 0)
-                    return {
-                        "price": round(float(price), 2),
-                        "change_val": round(change_val, 2),
-                        "change_rate": round(change_rate, 2),
-                        "positive": change_val >= 0,
-                    }
+            meta = r.json().get("chart", {}).get("result", [{}])[0].get("meta", {})
+            price = meta.get("regularMarketPrice") or meta.get("price")
+            print(f"[Macro/Yahoo] price={price}", flush=True)
+            if price and float(price) > 100:
+                prev = meta.get("previousClose") or meta.get("chartPreviousClose") or price
+                change_val = round(float(price) - float(prev), 2)
+                change_rate = round(change_val / float(prev) * 100, 2) if prev else 0.0
+                return {
+                    "price": round(float(price), 2),
+                    "change_val": change_val,
+                    "change_rate": change_rate,
+                    "positive": change_val >= 0,
+                }
     except Exception as e:
-        print(f"[Macro] Yahoo forex failed: {e}", flush=True)
+        print(f"[Macro/Yahoo] exception: {e}", flush=True)
 
-    # 4차: ExchangeRate-API (완전 무료, API 키 불필요 - 일별 업데이트)
+    # 4차: FRED DEXKOUS (일별 업데이트, FRED API 키 필요)
+    if settings.FRED_API_KEY:
+        try:
+            krw_rate = _fred_series("DEXKOUS")
+            print(f"[Macro/FRED] DEXKOUS={krw_rate}", flush=True)
+            if krw_rate and krw_rate > 100:
+                return {
+                    "price": round(float(krw_rate), 2),
+                    "change_val": 0.0,
+                    "change_rate": 0.0,
+                    "positive": True,
+                }
+        except Exception as e:
+            print(f"[Macro/FRED] exception: {e}", flush=True)
+
+    # 5차: ExchangeRate-API (최후 수단, 일별 업데이트)
     try:
         r = requests.get("https://open.er-api.com/v6/latest/USD", timeout=8)
         if r.ok:
@@ -136,7 +158,7 @@ def _get_usd_krw() -> dict | None:
                     "positive": True,
                 }
     except Exception as e:
-        print(f"[Macro] ExchangeRate-API failed: {e}", flush=True)
+        print(f"[Macro/ExchangeRate] exception: {e}", flush=True)
 
     return None
 
