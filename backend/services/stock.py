@@ -58,45 +58,73 @@ def get_stock_data(ticker: str) -> dict:
 
 
 def get_naver_financials(ticker: str) -> dict:
-    """NAVER Finance에서 PER/PBR/ROE/EPS/BPS 조회.
-    yfinance가 한국 주식 재무지표를 누락할 때 사용하는 신뢰성 높은 폴백."""
+    """NAVER Finance에서 PER/PBR/EPS/BPS 스크래핑.
+    finance.naver.com HTML의 id="_per", "_pbr", "_eps", "_bps" 요소를 파싱."""
+    import re
+
+    def _num(s: str) -> float | None:
+        if not s:
+            return None
+        try:
+            v = float(s.replace(",", "").strip())
+            return v if v > 0 else None
+        except Exception:
+            return None
+
+    # 1차: NAVER Finance 주식 메인 페이지 HTML 스크래핑
+    try:
+        r = requests.get(
+            f"https://finance.naver.com/item/main.nhn?code={ticker}",
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept-Language": "ko-KR,ko;q=0.9",
+                "Referer": "https://finance.naver.com",
+            },
+            timeout=8,
+        )
+        if r.ok:
+            r.encoding = "euc-kr"
+            html = r.text
+            result: dict = {}
+            for field, eid in [("per", "_per"), ("pbr", "_pbr"), ("eps", "_eps"), ("bps", "_bps")]:
+                m = re.search(rf'id="{eid}"[^>]*>([\d,\.]+)', html)
+                if m:
+                    v = _num(m.group(1))
+                    if v is not None:
+                        result[field] = round(v, 2)
+            if result:
+                return result
+    except Exception:
+        pass
+
+    # 2차: NAVER 모바일 JSON API (totalInfos 구조 시도)
     try:
         r = requests.get(
             f"https://m.stock.naver.com/api/stock/{ticker}/basic",
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
             timeout=6,
         )
-        if not r.ok:
-            return {}
-        data = r.json()
-
-        def _parse(s) -> float | None:
-            if s is None:
-                return None
-            try:
-                cleaned = str(s).replace(",", "").replace("%", "").replace("배", "").strip()
-                v = float(cleaned)
-                return v if v > 0 else None
-            except Exception:
-                return None
-
-        result: dict = {}
-        for item in data.get("totalInfos", []):
-            code = item.get("code", "")
-            val = _parse(item.get("value"))
-            if val is None:
-                continue
-            if code == "PER":
-                result["per"] = round(val, 2)
-            elif code == "PBR":
-                result["pbr"] = round(val, 2)
-            elif code == "ROE":
-                result["roe"] = round(val, 2)
-            elif code == "EPS":
-                result["eps"] = val
-            elif code == "BPS":
-                result["bps"] = val
-
-        return result
+        if r.ok:
+            data = r.json()
+            result = {}
+            for item in data.get("totalInfos", []):
+                code = (item.get("code") or "").upper()
+                val = _num(str(item.get("value") or "").replace("배", "").replace("%", ""))
+                if val is None:
+                    continue
+                if code in ("PER",):
+                    result["per"] = round(val, 2)
+                elif code in ("PBR",):
+                    result["pbr"] = round(val, 2)
+                elif code in ("ROE",):
+                    result["roe"] = round(val, 2)
+                elif code in ("EPS",):
+                    result["eps"] = val
+                elif code in ("BPS",):
+                    result["bps"] = val
+            if result:
+                return result
     except Exception:
-        return {}
+        pass
+
+    return {}

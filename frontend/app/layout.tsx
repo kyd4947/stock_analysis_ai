@@ -108,10 +108,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           require_liquidity: true,
         },
       });
-      setScreenResult(result);
-      // 결과가 오면 헤더를 숫자 코드 대신 종목명으로 업데이트
-      if (result.results.length > 0 && result.results[0].name) {
-        setLastTicker(result.results[0].name);
+      if (result.results.length === 0) {
+        setScreenError("이 종목의 데이터를 가져올 수 없습니다. 상장폐지된 종목이거나 현재 지원하지 않는 종목일 수 있습니다.");
+        setScreenResult(null);
+      } else {
+        setScreenResult(result);
+        // 결과가 오면 헤더를 숫자 코드 대신 종목명으로 업데이트
+        if (result.results[0].name) {
+          setLastTicker(result.results[0].name);
+        }
       }
     } catch (error) {
       console.error("Ticker screen failed:", error);
