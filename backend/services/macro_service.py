@@ -1,26 +1,68 @@
 """
 거시경제 데이터 수집:
-- KOSPI/KOSDAQ/USD-KRW: yfinance 실시간
+- KOSPI/KOSDAQ/USD-KRW: NAVER Finance 실시간
 - 한국 기준금리 / CPI: ECOS API
 - 미국 기준금리 / 10Y 수익률: FRED API
 """
 import datetime
 import requests
-import yfinance as yf
 
 from backend.core.config import settings
 
+_NAVER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Referer": "https://m.stock.naver.com/",
+}
 
-def _index_snapshot(symbol: str) -> dict | None:
+
+def _naver_index(index_code: str) -> dict | None:
+    """NAVER Finance에서 지수(KOSPI/KOSDAQ) 실시간 데이터 조회."""
     try:
-        t = yf.Ticker(symbol)
-        info = t.fast_info
-        price = info.last_price
-        prev = info.previous_close
+        r = requests.get(
+            f"https://m.stock.naver.com/api/index/{index_code}/basic",
+            headers=_NAVER_HEADERS,
+            timeout=8,
+        )
+        if not r.ok:
+            return None
+        data = r.json()
+        price_str = str(data.get("closePrice") or "").replace(",", "")
+        price = float(price_str) if price_str else None
         if not price:
             return None
-        change_val = price - prev
-        change_rate = (change_val / prev * 100) if prev else 0.0
+        change_str = str(data.get("compareToPreviousClosePrice") or "0").replace(",", "")
+        change_val = float(change_str) if change_str else 0.0
+        change_rate_str = str(data.get("fluctuationsRatio") or "0")
+        change_rate = float(change_rate_str) if change_rate_str else 0.0
+        return {
+            "price": round(price, 2),
+            "change_val": round(change_val, 2),
+            "change_rate": round(change_rate, 2),
+            "positive": change_val >= 0,
+        }
+    except Exception:
+        return None
+
+
+def _naver_forex(forex_code: str) -> dict | None:
+    """NAVER Finance에서 환율 실시간 데이터 조회."""
+    try:
+        r = requests.get(
+            f"https://m.stock.naver.com/api/forex/{forex_code}/basic",
+            headers=_NAVER_HEADERS,
+            timeout=8,
+        )
+        if not r.ok:
+            return None
+        data = r.json()
+        price_str = str(data.get("closePrice") or "").replace(",", "")
+        price = float(price_str) if price_str else None
+        if not price:
+            return None
+        change_str = str(data.get("compareToPreviousClosePrice") or "0").replace(",", "")
+        change_val = float(change_str) if change_str else 0.0
+        change_rate_str = str(data.get("fluctuationsRatio") or "0")
+        change_rate = float(change_rate_str) if change_rate_str else 0.0
         return {
             "price": round(price, 2),
             "change_val": round(change_val, 2),
@@ -102,15 +144,15 @@ def _fred_series(series_id: str) -> float | None:
 def get_macro_snapshot() -> dict:
     result: dict = {}
 
-    kospi = _index_snapshot("^KS11")
+    kospi = _naver_index("KOSPI")
     if kospi:
         result["kospi"] = kospi
 
-    kosdaq = _index_snapshot("^KQ11")
+    kosdaq = _naver_index("KOSDAQ")
     if kosdaq:
         result["kosdaq"] = kosdaq
 
-    usd_krw = _index_snapshot("KRW=X")
+    usd_krw = _naver_forex("FX_USDKRW")
     if usd_krw:
         result["usd_krw"] = usd_krw
         result["exchange_rate_usdkrw"] = usd_krw["price"]

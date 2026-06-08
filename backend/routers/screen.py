@@ -67,7 +67,7 @@ async def _process_ticker(
     pbr = stock.get("pbr")
     roe = stock.get("roe")
 
-    # 우선순위: yfinance → NAVER Finance → DART(EPS/BPS 계산)
+    # 우선순위: NAVER Finance(totalInfos) → NAVER HTML 스크래핑 → DART(EPS/BPS 계산)
     if per is None:
         per = naver_fin.get("per")
     if pbr is None:
