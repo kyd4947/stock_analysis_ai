@@ -54,6 +54,35 @@ def get_stock_data(ticker: str) -> dict:
         except Exception:
             continue
 
+    # yfinance 실패 시 NAVER Finance 모바일 API로 가격 조회
+    try:
+        r = requests.get(
+            f"https://m.stock.naver.com/api/stock/{ticker}/basic",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            timeout=8,
+        )
+        if r.ok:
+            data = r.json()
+            price_str = str(data.get("closePrice") or "").replace(",", "")
+            price = float(price_str) if price_str else None
+            if price:
+                change_str = str(data.get("compareToPreviousClosePrice") or "0").replace(",", "")
+                change_val = float(change_str) if change_str else 0.0
+                change_rate_str = str(data.get("fluctuationsRatio") or "0")
+                change_rate = float(change_rate_str) if change_rate_str else 0.0
+                result.update(
+                    {
+                        "name": data.get("stockName") or ticker,
+                        "price": round(price),
+                        "change_rate": round(change_rate, 2),
+                        "change_value": round(change_val),
+                        "sector": None,
+                    }
+                )
+                return result
+    except Exception:
+        pass
+
     return result
 
 

@@ -13,8 +13,8 @@ _MODELS = [
     "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
-    "gemini-flash-latest",
-    "gemini-3.1-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
 ]
 
 _STYLE_MAP = {
@@ -33,19 +33,17 @@ def _client() -> genai.Client:
 
 
 def _generate(prompt: str) -> str:
-    """모델 fallback 포함 텍스트 생성."""
+    """모델 fallback 포함 텍스트 생성. 모든 오류에서 다음 모델 시도."""
     client = _client()
     last_err: Exception | None = None
     for model in _MODELS:
         try:
             response = client.models.generate_content(model=model, contents=prompt)
             return response.text.strip()
-        except ClientError as e:
-            if e.status_code == 429:
-                last_err = e
-                continue
-            raise
-    raise RuntimeError(f"모든 Gemini 모델 할당량 초과: {last_err}")
+        except Exception as e:
+            last_err = e
+            continue
+    raise RuntimeError(f"모든 Gemini 모델 오류: {last_err}")
 
 
 def analyze_stock(
@@ -95,8 +93,14 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 
     try:
         text = _generate(prompt)
-        text = re.sub(r"```json\s*", "", text)
-        text = re.sub(r"```\s*$", "", text)
+        text = re.sub(r"```(?:json)?\s*", "", text)
+        text = re.sub(r"```", "", text)
+        text = text.strip()
+        # JSON 객체만 추출 (앞뒤 불필요한 텍스트 제거)
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end > start:
+            text = text[start : end + 1]
         return json.loads(text)
     except Exception:
         return {
