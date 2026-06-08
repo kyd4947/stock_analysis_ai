@@ -68,34 +68,37 @@ def get_stock_data(ticker: str) -> dict:
             }
         )
 
-        # totalInfos에서 PER/PBR/ROE/EPS/BPS 추출
-        for item in data.get("totalInfos", []):
-            code = (item.get("code") or "").upper()
-            raw = str(item.get("value") or "").replace("배", "").replace("%", "").replace(",", "")
-            if code in ("PER", "PBR", "BPS"):
-                val = _num(raw)
-                if val is None:
-                    continue
-                if code == "PER":
-                    result["per"] = round(val, 2)
-                elif code == "PBR":
-                    result["pbr"] = round(val, 2)
-                elif code == "BPS":
-                    result["bps"] = round(val, 2)
-            elif code in ("ROE", "EPS"):
-                # ROE/EPS는 음수 가능 → _signed 사용
-                val = _signed(raw)
-                if val is None:
-                    continue
-                if code == "ROE":
-                    result["roe"] = round(val, 2)
-                elif code == "EPS":
-                    result["eps"] = round(val, 2)
-
-        # EPS/BPS로 ROE 계산 (totalInfos에 ROE 코드가 없을 때)
-        if result["roe"] is None and result["eps"] is not None and result["bps"] and result["bps"] > 0:
-            result["roe"] = round(result["eps"] / result["bps"] * 100, 2)
-            print(f"[Stock/{result['ticker']}] ROE calculated from EPS/BPS: {result['roe']}", flush=True)
+        # /finance/annual 에서 PER/PBR/ROE/EPS/BPS 추출 (totalInfos 대체)
+        try:
+            fa = requests.get(
+                f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
+                headers=_NAVER_HEADERS,
+                timeout=6,
+            )
+            if fa.ok:
+                fi = fa.json().get("financeInfo", {})
+                titles = fi.get("trTitleList", [])
+                rows = fi.get("rowList", [])
+                # 가장 최근 실적 기간 key (비컨센서스)
+                actual_keys = sorted(
+                    [t["key"] for t in titles if t.get("isConsensus", "N") == "N"],
+                    reverse=True,
+                )
+                key = actual_keys[0] if actual_keys else None
+                if key:
+                    for row in rows:
+                        title = row.get("title", "")
+                        raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
+                        if title in ("PER", "PBR", "BPS"):
+                            val = _num(raw)
+                            if val is not None:
+                                result[title.lower()] = round(val, 2)
+                        elif title in ("ROE", "EPS"):
+                            val = _signed(raw)
+                            if val is not None:
+                                result[title.lower()] = round(val, 2)
+        except Exception:
+            pass
 
     except Exception:
         pass
@@ -104,41 +107,37 @@ def get_stock_data(ticker: str) -> dict:
 
 
 def get_naver_financials(ticker: str) -> dict:
-    """NAVER Finance HTML에서 PER/PBR/EPS/BPS 스크래핑 (DART 없을 때 보완용)."""
-    import re
-
-    def _num_pos(s: str) -> float | None:
-        if not s:
-            return None
-        try:
-            v = float(s.replace(",", "").strip())
-            return v if v > 0 else None
-        except Exception:
-            return None
-
+    """NAVER Finance /finance/annual API에서 PER/PBR/ROE/EPS/BPS 조회 (DART 보완용)."""
     try:
         r = requests.get(
-            f"https://finance.naver.com/item/main.nhn?code={ticker}",
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept-Language": "ko-KR,ko;q=0.9",
-                "Referer": "https://finance.naver.com",
-            },
+            f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
+            headers=_NAVER_HEADERS,
             timeout=8,
         )
-        if r.ok:
-            r.encoding = "euc-kr"
-            html = r.text
-            result: dict = {}
-            for field, eid in [("per", "_per"), ("pbr", "_pbr"), ("eps", "_eps"), ("bps", "_bps")]:
-                m = re.search(rf'id="{eid}"[^>]*>([\d,\.]+)', html)
-                if m:
-                    v = _num_pos(m.group(1))
-                    if v is not None:
-                        result[field] = round(v, 2)
-            if result:
-                return result
+        if not r.ok:
+            return {}
+        fi = r.json().get("financeInfo", {})
+        titles = fi.get("trTitleList", [])
+        rows = fi.get("rowList", [])
+        actual_keys = sorted(
+            [t["key"] for t in titles if t.get("isConsensus", "N") == "N"],
+            reverse=True,
+        )
+        if not actual_keys:
+            return {}
+        key = actual_keys[0]
+        result: dict = {}
+        for row in rows:
+            title = row.get("title", "")
+            raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
+            if title in ("PER", "PBR", "BPS"):
+                val = _num(raw)
+                if val is not None:
+                    result[title.lower()] = round(val, 2)
+            elif title in ("ROE", "EPS"):
+                val = _signed(raw)
+                if val is not None:
+                    result[title.lower()] = round(val, 2)
+        return result
     except Exception:
-        pass
-
-    return {}
+        return {}
