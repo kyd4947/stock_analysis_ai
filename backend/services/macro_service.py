@@ -45,8 +45,8 @@ def _naver_index(index_code: str) -> dict | None:
 
 
 def _get_usd_krw() -> dict | None:
-    """USD/KRW 환율 조회 - NAVER Finance → ExchangeRate-API 순서로 시도."""
-    # 1차: NAVER Finance forex API (field명이 closePrice 또는 basePrice)
+    """USD/KRW 환율 조회 - NAVER Finance → Dunamu → ExchangeRate-API 순서로 시도."""
+    # 1차: NAVER Finance forex API
     try:
         r = requests.get(
             "https://m.stock.naver.com/api/forex/FX_USDKRW/basic",
@@ -69,10 +69,36 @@ def _get_usd_krw() -> dict | None:
                     "change_rate": round(change_rate, 2),
                     "positive": change_val >= 0,
                 }
-    except Exception:
-        pass
+            print(f"[Macro] NAVER forex keys: {list(data.keys())[:8]}", flush=True)
+    except Exception as e:
+        print(f"[Macro] NAVER forex failed: {e}", flush=True)
 
-    # 2차: ExchangeRate-API (완전 무료, API 키 불필요)
+    # 2차: Dunamu(Upbit) 환율 API - 실시간, API 키 불필요
+    try:
+        r = requests.get(
+            "https://quotation-api-cdn.dunamu.com/v1/forex/recent",
+            params={"codes": "FRX.KRWUSD"},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=8,
+        )
+        if r.ok:
+            items = r.json()
+            if items and isinstance(items, list):
+                d = items[0]
+                price = d.get("basePrice")
+                if price and float(price) > 100:
+                    change_val = float(d.get("signedChangePrice") or 0)
+                    change_rate_raw = float(d.get("signedChangeRate") or 0)
+                    return {
+                        "price": round(float(price), 2),
+                        "change_val": round(change_val, 2),
+                        "change_rate": round(change_rate_raw * 100, 2),
+                        "positive": change_val >= 0,
+                    }
+    except Exception as e:
+        print(f"[Macro] Dunamu forex failed: {e}", flush=True)
+
+    # 3차: ExchangeRate-API (완전 무료, API 키 불필요 - 일별 업데이트)
     try:
         r = requests.get("https://open.er-api.com/v6/latest/USD", timeout=8)
         if r.ok:
@@ -84,8 +110,8 @@ def _get_usd_krw() -> dict | None:
                     "change_rate": 0.0,
                     "positive": True,
                 }
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[Macro] ExchangeRate-API failed: {e}", flush=True)
 
     return None
 
