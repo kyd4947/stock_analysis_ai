@@ -1,8 +1,10 @@
+import re
 import uuid
 import asyncio
 from typing import Optional
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, field_validator
+from backend.core.limiter import limiter
 
 from backend.services.stock import get_stock_data, get_naver_financials
 from backend.services.macro_service import get_macro_snapshot
@@ -25,11 +27,23 @@ class Preferences(BaseModel):
     require_liquidity: bool = False
 
 
+_TICKER_RE = re.compile(r"^[\w가-힣]{1,20}$")
+
 class ScreenRequest(BaseModel):
     id: Optional[str] = None
     tickers: list[str]
     user_profile: UserProfile = UserProfile()
     preferences: Preferences = Preferences()
+
+    @field_validator("tickers")
+    @classmethod
+    def validate_tickers(cls, v: list[str]) -> list[str]:
+        if len(v) > 20:
+            raise ValueError("tickers는 최대 20개까지 허용됩니다.")
+        for t in v:
+            if not _TICKER_RE.match(t.strip()):
+                raise ValueError(f"유효하지 않은 티커: {t}")
+        return v
 
 
 def _resolve_ticker(ticker: str) -> str:
@@ -151,7 +165,8 @@ async def _process_ticker(
 
 
 @router.post("/screen")
-async def screen_stocks(req: ScreenRequest):
+@limiter.limit("5/minute")
+async def screen_stocks(request: Request, req: ScreenRequest):
     loop = asyncio.get_event_loop()
     macro = await loop.run_in_executor(None, get_macro_snapshot)
 
