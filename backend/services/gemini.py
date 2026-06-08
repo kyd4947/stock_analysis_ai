@@ -34,6 +34,8 @@ def _client() -> genai.Client:
 
 def _generate(prompt: str) -> str:
     """모델 fallback 포함 텍스트 생성. 모든 오류에서 다음 모델 시도."""
+    if not settings.GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY가 설정되지 않았습니다")
     client = _client()
     last_err: Exception | None = None
     for model in _MODELS:
@@ -41,6 +43,7 @@ def _generate(prompt: str) -> str:
             response = client.models.generate_content(model=model, contents=prompt)
             return response.text.strip()
         except Exception as e:
+            print(f"[Gemini] {model} failed: {type(e).__name__}: {e}", flush=True)
             last_err = e
             continue
     raise RuntimeError(f"모든 Gemini 모델 오류: {last_err}")
@@ -102,7 +105,8 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
         if start != -1 and end > start:
             text = text[start : end + 1]
         return json.loads(text)
-    except Exception:
+    except Exception as e:
+        print(f"[Gemini] analyze_stock {ticker} error: {type(e).__name__}: {e}", flush=True)
         return {
             "score": 0.5,
             "signal": "HOLD",

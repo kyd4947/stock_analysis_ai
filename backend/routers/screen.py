@@ -83,6 +83,12 @@ async def _process_ticker(
         pbr = round(price / bps, 2)
     if roe is None and dart_fin.get("roe") is not None:
         roe = dart_fin["roe"]
+    # NAVER HTML EPS/BPS로 ROE 계산 (DART 없을 때 최종 fallback)
+    if roe is None:
+        naver_eps = naver_fin.get("eps")
+        naver_bps = naver_fin.get("bps")
+        if naver_eps and naver_bps and naver_bps > 0:
+            roe = round(naver_eps / naver_bps * 100, 2)
 
     # None을 그대로 유지 (0.0으로 대체하지 않음 - AI가 0을 유효값으로 오인하는 문제 방지)
     financial = {
