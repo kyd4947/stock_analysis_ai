@@ -114,7 +114,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       setScreenResult(result);
     } catch (error) {
       console.error("Ticker screen failed:", error);
-      setScreenError("분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      const isConnErr =
+        error instanceof TypeError &&
+        (error.message.includes("fetch") || error.message.includes("Failed to fetch") || error.message.includes("NetworkError"));
+      setScreenError(
+        isConnErr
+          ? "백엔드 서버에 연결할 수 없습니다. Railway/Render에 배포 후 Vercel 환경변수 NEXT_PUBLIC_API_BASE_URL을 설정해주세요."
+          : "분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+      );
     } finally {
       setSearchLoading(false);
       setScreenLoading(false);

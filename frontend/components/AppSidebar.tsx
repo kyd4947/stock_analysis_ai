@@ -151,17 +151,21 @@ export function AppSidebar({
         collapsed ? "w-[72px]" : "w-[292px]"
       )}
     >
-      <div className={cn("flex items-center gap-3 px-3 py-4", collapsed && "justify-center")}>
+      <button
+        type="button"
+        onClick={() => onNavChange("analysis")}
+        className={cn("flex w-full items-center gap-3 px-3 py-4 transition-opacity hover:opacity-75", collapsed && "justify-center")}
+      >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-sm">
           <Sparkles className="h-4 w-4" />
         </div>
         {!collapsed && (
-          <div className="min-w-0">
+          <div className="min-w-0 text-left">
             <h1 className="truncate text-sm font-bold text-slate-950">Stock Analysis AI</h1>
             <p className="text-xs text-slate-500">거시경제 기반 투자 분석</p>
           </div>
         )}
-      </div>
+      </button>
 
       <div className={cn("px-3", collapsed && "px-2")}>
         <Button
@@ -260,6 +264,7 @@ export function AppSidebar({
         <div className="border-t border-slate-200/70 px-3 py-3">
           <button
             type="button"
+            onClick={() => onNavChange("profile")}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-500 hover:bg-white hover:text-slate-950"
           >
             <Settings2 className="h-4 w-4" />

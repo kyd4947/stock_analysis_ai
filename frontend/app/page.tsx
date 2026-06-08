@@ -29,11 +29,20 @@ import { WatchlistPage } from "@/components/WatchlistPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { useSearchContext } from "./layout";
 
-const watchlist = [
-  { ticker: "005930", name: "삼성전자", score: 86, change: "+1.8%", tag: "반도체" },
-  { ticker: "000660", name: "SK하이닉스", score: 91, change: "+2.6%", tag: "AI 메모리" },
-  { ticker: "035420", name: "NAVER", score: 74, change: "-0.7%", tag: "플랫폼" },
-  { ticker: "207940", name: "삼성바이오로직스", score: 79, change: "+0.4%", tag: "바이오" },
+type DashboardItem = {
+  ticker: string;
+  score?: number;
+  change?: string;
+  price?: number;
+  tag?: string;
+  isFromWatchlist?: boolean;
+};
+
+const SAMPLE_ITEMS: DashboardItem[] = [
+  { ticker: "005930", score: undefined, tag: "반도체" },
+  { ticker: "000660", score: undefined, tag: "AI 메모리" },
+  { ticker: "035420", score: undefined, tag: "플랫폼" },
+  { ticker: "207940", score: undefined, tag: "바이오" },
 ];
 
 const signals = [
@@ -45,6 +54,7 @@ const signals = [
 export default function Page() {
   const [macro, setMacro] = useState<MacroSnapshot | null>(null);
   const [localInput, setLocalInput] = useState("");
+  const [dashboardItems, setDashboardItems] = useState<DashboardItem[]>(SAMPLE_ITEMS);
   const {
     screenResult,
     screenLoading,
@@ -56,16 +66,50 @@ export default function Page() {
     activeNav,
   } = useSearchContext();
 
+  // localStorage 관심 종목 → 대시보드 목록 동기화
   useEffect(() => {
-    if (
-      screenError &&
-      (screenError.includes("getaddrinfo") ||
-        screenError.includes("11001") ||
-        screenError.includes("인터넷 연결"))
-    ) {
-      alert("인터넷 연결을 확인해주세요. (데이터 수집 서버 연결 실패)");
-    }
-  }, [screenError]);
+    try {
+      const stored = localStorage.getItem("watchlist");
+      if (stored) {
+        const items: Array<{ ticker: string; lastScore?: number; lastPrice?: number; lastSector?: string }> =
+          JSON.parse(stored);
+        if (items.length > 0) {
+          setDashboardItems(
+            items.map((item) => ({
+              ticker: item.ticker,
+              score: item.lastScore !== undefined ? Math.round(item.lastScore * 100) : undefined,
+              price: item.lastPrice,
+              tag: item.lastSector,
+              isFromWatchlist: true,
+            }))
+          );
+          return;
+        }
+      }
+    } catch {}
+    setDashboardItems(SAMPLE_ITEMS);
+  }, []);
+
+  // 분석 결과가 돌아오면 해당 종목 캐시 업데이트
+  useEffect(() => {
+    if (!screenResult) return;
+    setDashboardItems((prev) =>
+      prev.map((item) => {
+        const r = screenResult.results.find((s) => s.ticker === item.ticker);
+        if (!r) return item;
+        return {
+          ...item,
+          score: Math.round(r.score * 100),
+          price: r.price,
+          tag: r.sector ?? item.tag,
+          change:
+            r.change_rate !== undefined
+              ? `${r.change_rate >= 0 ? "+" : ""}${r.change_rate.toFixed(1)}%`
+              : item.change,
+        };
+      })
+    );
+  }, [screenResult]);
 
   const onLocalSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,60 +333,77 @@ export default function Page() {
                 </div>
 
                 <div className="divide-y divide-slate-100">
-                  {watchlist.map((item) => {
-                    const isPositive = item.change.startsWith("+");
-                    return (
-                      <button
-                        key={item.ticker}
-                        type="button"
-                        onClick={() => {
-                          setLastTicker?.(item.name);
-                          handleTickerSearch?.(item.ticker);
-                        }}
-                        className="grid w-full gap-4 p-5 text-left transition-colors hover:bg-slate-50 md:grid-cols-[1fr_120px_120px]"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-base font-bold text-slate-950">{item.name}</span>
-                            <span className="text-sm font-semibold text-slate-400">
-                              {item.ticker}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className="border-slate-200 bg-white text-slate-500"
-                            >
-                              {item.tag}
-                            </Badge>
-                          </div>
-                          <p className="mt-2 text-sm text-slate-500">
-                            실적 모멘텀과 시장 민감도를 함께 반영한 단기 관찰 대상입니다.
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400">AI Score</p>
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-200">
-                              <div
-                                className="h-full rounded-full bg-slate-950"
-                                style={{ width: `${item.score}%` }}
-                              />
+                  {dashboardItems.length === 0 ? (
+                    <p className="p-6 text-sm text-slate-400">
+                      관심 종목 탭에서 종목을 추가하면 여기에 표시됩니다.
+                    </p>
+                  ) : (
+                    dashboardItems.map((item) => {
+                      const isPositive = item.change?.startsWith("+");
+                      return (
+                        <button
+                          key={item.ticker}
+                          type="button"
+                          onClick={() => handleTickerSearch?.(item.ticker)}
+                          className="grid w-full gap-4 p-5 text-left transition-colors hover:bg-slate-50 md:grid-cols-[1fr_130px_120px_110px]"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-base font-bold text-slate-950">{item.ticker}</span>
+                              {item.tag && (
+                                <Badge variant="outline" className="border-slate-200 bg-white text-slate-500">
+                                  {item.tag}
+                                </Badge>
+                              )}
+                              {!item.isFromWatchlist && (
+                                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-600 text-xs">
+                                  샘플
+                                </Badge>
+                              )}
                             </div>
-                            <span className="text-sm font-bold text-slate-950">{item.score}</span>
+                            <p className="mt-1 text-xs text-slate-400">
+                              클릭하면 AI 분석을 실행합니다.
+                            </p>
                           </div>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400">오늘 변동</p>
-                          <p
-                            className={`mt-1 text-sm font-bold ${
-                              isPositive ? "text-rose-600" : "text-blue-600"
-                            }`}
-                          >
-                            {item.change}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
+
+                          <div>
+                            <p className="text-xs font-semibold text-slate-400">현재가</p>
+                            <p className="mt-1 text-sm font-bold text-slate-950">
+                              {item.price ? item.price.toLocaleString("ko-KR") + "원" : "—"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-semibold text-slate-400">AI Score</p>
+                            {item.score !== undefined ? (
+                              <div className="mt-2 flex items-center gap-2">
+                                <div className="h-2 w-16 overflow-hidden rounded-full bg-slate-200">
+                                  <div
+                                    className="h-full rounded-full bg-slate-950"
+                                    style={{ width: `${item.score}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm font-bold text-slate-950">{item.score}</span>
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-sm text-slate-400">—</p>
+                            )}
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-semibold text-slate-400">등락률</p>
+                            {item.change ? (
+                              <p className={`mt-1 text-sm font-bold ${isPositive ? "text-rose-600" : "text-blue-600"}`}>
+                                {item.change}
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-sm text-slate-400">—</p>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
