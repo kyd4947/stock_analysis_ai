@@ -4,13 +4,15 @@ google-genai SDK (2.x) 사용. 모델 할당량 초과 시 순서대로 fallback
 """
 import json
 import re
+import time
 from google import genai
 from google.genai.errors import ClientError
 
 from backend.core.config import settings
 
+# gemini-2.5-flash는 preview 전용으로 404 발생 → 제외
+# 무료 할당량이 높은 순서로 배치
 _MODELS = [
-    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
     "gemini-1.5-flash",
@@ -43,8 +45,12 @@ def _generate(prompt: str) -> str:
             response = client.models.generate_content(model=model, contents=prompt)
             return response.text.strip()
         except Exception as e:
-            print(f"[Gemini] {model} failed: {type(e).__name__}: {e}", flush=True)
+            err_str = str(e)
+            print(f"[Gemini] {model} failed: {type(e).__name__}: {err_str}", flush=True)
             last_err = e
+            # 429이면 잠깐 대기 후 다음 모델 시도
+            if "429" in err_str or "quota" in err_str.lower():
+                time.sleep(3)
             continue
     raise RuntimeError(f"모든 Gemini 모델 오류: {last_err}")
 
