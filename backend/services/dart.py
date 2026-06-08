@@ -15,8 +15,8 @@ RISK_KEYWORDS = ("조사", "제재", "위반", "과징금", "고발", "검찰", 
 
 
 @lru_cache(maxsize=1)
-def _corp_code_map() -> dict[str, str]:
-    """DART corp_code.zip을 한 번만 내려받아 stock_code → corp_code 매핑을 반환."""
+def _corp_info_map() -> dict[str, dict]:
+    """DART corp_code.zip을 한 번만 내려받아 stock_code → {corp_code, name} 매핑 반환."""
     if not settings.DART_API_KEY:
         return {}
     try:
@@ -29,19 +29,49 @@ def _corp_code_map() -> dict[str, str]:
         with zipfile.ZipFile(io.BytesIO(r.content)) as z:
             with z.open("CORPCODE.xml") as f:
                 tree = ET.parse(f)
-        mapping: dict[str, str] = {}
+        mapping: dict[str, dict] = {}
         for item in tree.getroot().findall("list"):
             stock_code = (item.findtext("stock_code") or "").strip()
             corp_code = (item.findtext("corp_code") or "").strip()
+            corp_name = (item.findtext("corp_name") or "").strip()
             if stock_code:
-                mapping[stock_code] = corp_code
+                mapping[stock_code] = {"corp_code": corp_code, "name": corp_name}
         return mapping
     except Exception:
         return {}
 
 
+@lru_cache(maxsize=1)
+def _corp_code_map() -> dict[str, str]:
+    return {k: v["corp_code"] for k, v in _corp_info_map().items()}
+
+
 def _get_corp_code(ticker: str) -> str | None:
     return _corp_code_map().get(ticker)
+
+
+def search_stocks(query: str, limit: int = 10) -> list[dict]:
+    """종목명 또는 티커 코드로 종목 검색. DART 전체 상장 종목 대상."""
+    q = query.strip()
+    if not q:
+        return []
+    q_lower = q.lower()
+    results = []
+    for stock_code, info in _corp_info_map().items():
+        name = info.get("name", "")
+        if stock_code == q.upper() or stock_code.startswith(q) or q_lower in name.lower():
+            results.append({"ticker": stock_code, "name": name})
+
+    def _rank(item: dict) -> tuple:
+        t, n = item["ticker"], item["name"].lower()
+        if t == q.upper():
+            return (0, n)
+        if t.startswith(q):
+            return (1, n)
+        return (2, n)
+
+    results.sort(key=_rank)
+    return results[:limit]
 
 
 def get_dart_disclosures(ticker: str) -> dict:

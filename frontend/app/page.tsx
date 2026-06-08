@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   LineChart,
   Loader2,
-  Search,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -21,13 +20,13 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { fetchMacro, fetchMarketNews } from "@/lib/api";
 import type { MacroSnapshot } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
 import { ProfilePage } from "@/components/ProfilePage";
 import { PortfolioPage } from "@/components/PortfolioPage";
+import { StockSearchBox } from "@/components/StockSearchBox";
 import { useSearchContext } from "./layout";
 
 type DashboardItem = {
@@ -65,7 +64,6 @@ type NewsArticle = { title: string; url: string; source: string; publishedAt?: s
 
 export default function Page() {
   const [macro, setMacro] = useState<MacroSnapshot | null>(null);
-  const [localInput, setLocalInput] = useState("");
   const [dashboardItems, setDashboardItems] = useState<DashboardItem[]>(SAMPLE_ITEMS);
   const [marketNews, setMarketNews] = useState<NewsArticle[]>([]);
   const {
@@ -133,17 +131,6 @@ export default function Page() {
     );
   }, [screenResult]);
 
-  const onLocalSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (localInput.trim()) {
-      if (!handleTickerSearch) {
-        alert("검색 엔진을 로드하지 못했습니다. 페이지를 새로고침 해주세요.");
-        return;
-      }
-      setLastTicker?.(localInput.trim());
-      handleTickerSearch(localInput.trim());
-    }
-  };
 
   useEffect(() => {
     let active = true;
@@ -332,27 +319,13 @@ export default function Page() {
                       관심 종목을 점수와 리스크 기준으로 정렬했습니다.
                     </p>
                   </div>
-                  <form onSubmit={onLocalSearch} className="flex w-full max-w-sm gap-2">
-                    <Input
-                      placeholder="종목명 또는 티커 입력"
-                      value={localInput}
-                      onChange={(e) => setLocalInput(e.target.value)}
-                      className="h-10 border-slate-200 bg-white"
-                    />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="icon"
-                      disabled={screenLoading}
-                      className="h-10 w-10 border-slate-200 bg-white"
-                    >
-                      {screenLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                      ) : (
-                        <Search className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </form>
+                  <StockSearchBox
+                    onSelect={(ticker) => handleTickerSearch?.(ticker)}
+                    loading={screenLoading}
+                    placeholder="예: 삼성, 005930"
+                    showLabel={false}
+                    className="w-full max-w-sm"
+                  />
                 </div>
 
                 <div className="divide-y divide-slate-100">

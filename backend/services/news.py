@@ -69,11 +69,12 @@ def get_stock_news(ticker: str, company_name: str = "") -> list[dict]:
 
 
 def get_market_news() -> list[dict]:
-    """한국 주식 시장 전반 뉴스를 수집."""
+    """한국 주식 시장 전반 뉴스 수집. NewsAPI.org → Currents API 순으로 시도."""
     key = settings.NEWS_API_KEY
     if not key:
         return []
 
+    # NewsAPI.org 시도
     try:
         r = requests.get(
             "https://newsapi.org/v2/everything",
@@ -100,6 +101,34 @@ def get_market_news() -> list[dict]:
             ]
             if result:
                 return result[:6]
+    except Exception:
+        pass
+
+    # Currents API 시도
+    try:
+        r = requests.get(
+            "https://api.currentsapi.services/v1/search",
+            params={
+                "keywords": "코스피 코스닥 한국증시",
+                "language": "ko",
+                "apiKey": key,
+            },
+            timeout=8,
+        )
+        if r.ok:
+            articles = r.json().get("news", [])
+            result = [
+                {
+                    "title": a.get("title", ""),
+                    "url": a.get("url", ""),
+                    "source": a.get("author", "") or a.get("category", ["뉴스"])[0],
+                    "publishedAt": a.get("published", ""),
+                }
+                for a in articles[:6]
+                if a.get("title") and a.get("url")
+            ]
+            if result:
+                return result
     except Exception:
         pass
 

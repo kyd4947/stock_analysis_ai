@@ -12,16 +12,15 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  Send,
   Settings2,
   Sparkles,
   Star,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { MacroSnapshot } from "@/lib/api";
+import { StockSearchBox } from "@/components/StockSearchBox";
 
 export type NavItem = "analysis" | "watchlist" | "portfolio" | "profile";
 
@@ -30,9 +29,7 @@ type AppSidebarProps = {
   onToggleCollapse: () => void;
   activeNav: NavItem;
   onNavChange: (nav: NavItem) => void;
-  tickerInput: string;
-  onTickerInputChange: (value: string) => void;
-  onTickerSearch: (e: React.FormEvent) => void;
+  onTickerSearch: (ticker: string) => void;
   searchLoading: boolean;
   macro: MacroSnapshot | null;
   macroLoading: boolean;
@@ -136,8 +133,6 @@ export function AppSidebar({
   onToggleCollapse,
   activeNav,
   onNavChange,
-  tickerInput,
-  onTickerInputChange,
   onTickerSearch,
   searchLoading,
   macro,
@@ -235,28 +230,13 @@ export function AppSidebar({
             <Search className="h-4 w-4" />
           </Button>
         ) : (
-          <form onSubmit={onTickerSearch} className="space-y-2">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-              <Search className="h-3.5 w-3.5" />
-              종목 빠른 검색
-            </label>
-            <div className="flex gap-2">
-              <Input
-                value={tickerInput}
-                onChange={(event) => onTickerInputChange(event.target.value)}
-                placeholder="예: 005930"
-                className="h-10 border-slate-200 bg-white text-sm shadow-sm focus-visible:ring-slate-400"
-              />
-              <Button
-                type="submit"
-                size="icon"
-                disabled={searchLoading || !tickerInput.trim()}
-                className="h-10 w-10 shrink-0 bg-slate-950 text-white hover:bg-slate-800"
-              >
-                {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </div>
-          </form>
+          <StockSearchBox
+            onSelect={onTickerSearch}
+            loading={searchLoading}
+            placeholder="예: 삼성전자, 005930"
+            dropUp
+            showLabel
+          />
         )}
       </div>
 

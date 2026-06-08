@@ -148,6 +148,22 @@ export async function fetchMarketNews(): Promise<
   }
 }
 
+export async function searchStocks(
+  query: string
+): Promise<Array<{ ticker: string; name: string }>> {
+  try {
+    const res = await fetch(
+      `${API_BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=10`,
+      { headers: { Accept: "application/json" }, cache: "no-store" }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.results ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function askStockQuestion(
   ticker: string,
   question: string,
