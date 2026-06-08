@@ -1,7 +1,9 @@
 """
 yfinance를 이용한 한국 주식 데이터 수집.
 KOSPI 종목: {ticker}.KS, KOSDAQ 종목: {ticker}.KQ 순으로 시도.
+PER/PBR가 yfinance에 없으면 NAVER Finance API로 보완.
 """
+import requests
 import yfinance as yf
 
 
@@ -53,3 +55,48 @@ def get_stock_data(ticker: str) -> dict:
             continue
 
     return result
+
+
+def get_naver_financials(ticker: str) -> dict:
+    """NAVER Finance에서 PER/PBR/ROE/EPS/BPS 조회.
+    yfinance가 한국 주식 재무지표를 누락할 때 사용하는 신뢰성 높은 폴백."""
+    try:
+        r = requests.get(
+            f"https://m.stock.naver.com/api/stock/{ticker}/basic",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            timeout=6,
+        )
+        if not r.ok:
+            return {}
+        data = r.json()
+
+        def _parse(s) -> float | None:
+            if s is None:
+                return None
+            try:
+                cleaned = str(s).replace(",", "").replace("%", "").replace("배", "").strip()
+                v = float(cleaned)
+                return v if v > 0 else None
+            except Exception:
+                return None
+
+        result: dict = {}
+        for item in data.get("totalInfos", []):
+            code = item.get("code", "")
+            val = _parse(item.get("value"))
+            if val is None:
+                continue
+            if code == "PER":
+                result["per"] = round(val, 2)
+            elif code == "PBR":
+                result["pbr"] = round(val, 2)
+            elif code == "ROE":
+                result["roe"] = round(val, 2)
+            elif code == "EPS":
+                result["eps"] = val
+            elif code == "BPS":
+                result["bps"] = val
+
+        return result
+    except Exception:
+        return {}

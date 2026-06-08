@@ -65,6 +65,11 @@ def analyze_stock(
     risk_text = ", ".join(dart.get("risk_flags", [])) or "없음"
     highlights_text = "\n".join(f"- {h}" for h in dart.get("highlights", [])) or "없음"
 
+    def _fmt_fin(v) -> str:
+        if v is None or v == 0:
+            return "데이터 없음"
+        return str(v)
+
     prompt = f"""당신은 한국 주식 투자 AI 애널리스트입니다. 아래 데이터를 종합하여 {ticker} 종목을 분석하세요.
 
 [투자자 프로필]
@@ -74,7 +79,7 @@ def analyze_stock(
 USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macro.get("policy_rate", "N/A")}% | 미국 기준금리: {macro.get("fed_funds_rate", "N/A")}% | 인플레이션(YoY): {macro.get("inflation_yoy", "N/A")}%
 
 [재무]
-현재가: {price:,.0f}원 | PER: {financial.get("per", "N/A")} | PBR: {financial.get("pbr", "N/A")} | ROE: {financial.get("roe", "N/A")}%
+현재가: {price:,.0f}원 | PER: {_fmt_fin(financial.get("per"))} | PBR: {_fmt_fin(financial.get("pbr"))} | ROE: {_fmt_fin(financial.get("roe"))}{'%' if financial.get('roe') else ''}
 
 [DART 공시 하이라이트]
 {highlights_text}

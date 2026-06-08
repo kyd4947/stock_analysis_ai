@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from backend.services.stock import get_stock_data
+from backend.services.stock import get_stock_data, get_naver_financials
 from backend.services.macro_service import get_macro_snapshot
 from backend.services.dart import get_dart_disclosures, get_shareholders, get_dart_financials, name_to_ticker
 from backend.services.news import get_stock_news
@@ -49,19 +49,27 @@ async def _process_ticker(
     loop: asyncio.AbstractEventLoop,
 ) -> dict | None:
     ticker = _resolve_ticker(ticker)
-    stock, dart, shareholders, news_articles, dart_fin = await asyncio.gather(
+    stock, dart, shareholders, news_articles, dart_fin, naver_fin = await asyncio.gather(
         loop.run_in_executor(None, get_stock_data, ticker),
         loop.run_in_executor(None, get_dart_disclosures, ticker),
         loop.run_in_executor(None, get_shareholders, ticker),
         loop.run_in_executor(None, get_stock_news, ticker),
         loop.run_in_executor(None, get_dart_financials, ticker),
+        loop.run_in_executor(None, get_naver_financials, ticker),
     )
 
-    # yfinance가 재무지표를 제공하지 않으면 DART 재무제표로 보완
     price = stock.get("price") or 0
     per = stock.get("per")
     pbr = stock.get("pbr")
     roe = stock.get("roe")
+
+    # 우선순위: yfinance → NAVER Finance → DART(EPS/BPS 계산)
+    if per is None:
+        per = naver_fin.get("per")
+    if pbr is None:
+        pbr = naver_fin.get("pbr")
+    if roe is None:
+        roe = naver_fin.get("roe")
 
     if per is None and dart_fin.get("eps") and price and dart_fin["eps"] > 0:
         per = round(price / dart_fin["eps"], 2)
@@ -70,10 +78,11 @@ async def _process_ticker(
     if roe is None and dart_fin.get("roe") is not None:
         roe = dart_fin["roe"]
 
+    # None을 그대로 유지 (0.0으로 대체하지 않음 - AI가 0을 유효값으로 오인하는 문제 방지)
     financial = {
-        "per": per or 0.0,
-        "pbr": pbr or 0.0,
-        "roe": roe or 0.0,
+        "per": per,
+        "pbr": pbr,
+        "roe": roe,
     }
 
     analysis = await loop.run_in_executor(

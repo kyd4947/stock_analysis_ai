@@ -33,9 +33,9 @@ export type StockScreenResult = {
     fed_funds_rate?: number;
   };
   financial: {
-    per: number;
-    pbr: number;
-    roe: number;
+    per: number | null;
+    pbr: number | null;
+    roe: number | null;
   };
   dart: {
     risk_flags: string[];
