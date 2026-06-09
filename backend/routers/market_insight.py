@@ -54,14 +54,14 @@ async def analyze_test():
     results = {}
 
     # api_version별로 모델 목록 조회
-    for ver in ["v1", "v1beta", "v1alpha"]:
+    for ver in ["v1"]:
         try:
             client = _genai.Client(
                 api_key=key,
                 http_options={"api_version": ver},
             )
             models = [m.name for m in client.models.list()]
-            results[ver] = {"models": models[:10]}
+            results[ver] = {"models": models}  # 전체 목록
         except Exception as e:
             results[ver] = {"error": str(e)[:200]}
 
