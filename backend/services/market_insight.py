@@ -195,4 +195,8 @@ def get_market_insight(macro: dict) -> dict:
         print(f"[MarketInsight] Gemini failed: {type(e).__name__}: {e}", flush=True)
         if _cache is not None:
             return _cache
-        return _fallback()
+        # Gemini 실패 시 fallback을 캐시에 저장 — 반복 호출 방지
+        fb = _fallback()
+        _cache = fb
+        _cache_time = datetime.datetime.now(_KST)
+        return fb
