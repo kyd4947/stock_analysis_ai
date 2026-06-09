@@ -8,7 +8,6 @@ import {
   BarChart3,
   Bell,
   BrainCircuit,
-  Building2,
   CalendarClock,
   CheckCircle2,
   LineChart,
@@ -476,8 +475,8 @@ export default function Page() {
                 </p>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-white/10 p-3">
-                    <p className="text-xs text-slate-300">위험 선호</p>
-                    <p className="mt-1 text-xl font-bold">
+                    <p className="text-xs text-slate-300">위험 신호</p>
+                    <p className="mt-1 text-base font-bold leading-tight">
                       {marketInsight?.risk_appetite ?? "—"}
                     </p>
                   </div>
@@ -487,6 +486,26 @@ export default function Page() {
                       {marketInsight ? `${marketInsight.recommended_weight}%` : "—"}
                     </p>
                   </div>
+                </div>
+                <div className="mt-3 rounded-lg bg-white/10 p-3">
+                  <p className="text-xs text-slate-300 mb-2">추천 섹터</p>
+                  {marketInsight?.sectors?.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {[...marketInsight.sectors]
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, 4)
+                        .map(({ name, score }) => (
+                          <span
+                            key={name}
+                            className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white"
+                          >
+                            {name} {score}
+                          </span>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400">—</p>
+                  )}
                 </div>
                 {marketInsight?.generated_at && (
                   <p className="mt-3 text-xs text-slate-500">
@@ -525,36 +544,6 @@ export default function Page() {
                       </div>
                     ))
                   )}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
-                  <Building2 className="h-5 w-5" />
-                  섹터 온도
-                </h2>
-                <div className="mt-4 space-y-3">
-                  {(marketInsight?.sectors ?? [
-                    { name: "반도체", score: 0 },
-                    { name: "자동차", score: 0 },
-                    { name: "금융", score: 0 },
-                    { name: "바이오", score: 0 },
-                  ]).map(({ name, score }) => (
-                    <div key={name}>
-                      <div className="mb-1 flex justify-between text-sm">
-                        <span className="font-medium text-slate-600">{name}</span>
-                        <span className="font-bold text-slate-950">
-                          {marketInsight ? score : "—"}
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full bg-slate-950 transition-all duration-700"
-                          style={{ width: `${marketInsight ? score : 0}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
 

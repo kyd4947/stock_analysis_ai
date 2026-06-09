@@ -167,7 +167,7 @@ USD/KRW: {f"{usd_krw:,.1f}" if usd_krw else "N/A"}
 반드시 아래 JSON 형식만 응답하세요 (마크다운 없이):
 {{"interpretation": "현재 시장 상황을 2~3문장으로 설명. 투자자에게 유용한 실질적 인사이트 포함.", "risk_appetite": "보수적 또는 중립 또는 중립+ 또는 공격적 중 하나", "recommended_weight": 0~100 사이 정수, "sectors": [{{"name": "반도체", "score": 0~100 정수}}, {{"name": "자동차", "score": 0~100 정수}}, {{"name": "금융", "score": 0~100 정수}}, {{"name": "바이오", "score": 0~100 정수}}, {{"name": "IT/플랫폼", "score": 0~100 정수}}, {{"name": "에너지/화학", "score": 0~100 정수}}], "recommended_tickers": [{{"ticker": "005930", "name": "삼성전자", "sector": "반도체"}}, {{"ticker": "000660", "name": "SK하이닉스", "sector": "AI메모리"}}, {{"ticker": "035420", "name": "NAVER", "sector": "플랫폼"}}, {{"ticker": "267260", "name": "HD현대일렉트릭", "sector": "전력인프라"}}, {{"ticker": "005380", "name": "현대차", "sector": "자동차"}}]}}"""
 
-    text = gemini_svc._generate(prompt)
+    text = gemini_svc._generate(prompt, json_mode=True)
     text = re.sub(r"```(?:json)?\s*", "", text)
     text = re.sub(r"```", "", text).strip()
     start = text.find("{")

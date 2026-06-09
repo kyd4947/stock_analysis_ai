@@ -36,21 +36,32 @@ def _client() -> genai.Client:
     )
 
 
-def _generate(prompt: str) -> str:
-    """모델 fallback 포함 텍스트 생성. 모든 오류에서 다음 모델 시도."""
+def _generate(prompt: str, json_mode: bool = False) -> str:
+    """모델 fallback 포함 텍스트 생성. json_mode=True 시 JSON 응답 강제."""
     if not settings.GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY가 설정되지 않았습니다")
     client = _client()
     last_err: Exception | None = None
+
+    config = None
+    if json_mode:
+        try:
+            from google.genai import types as _t
+            config = _t.GenerateContentConfig(response_mime_type="application/json")
+        except Exception:
+            config = {"response_mime_type": "application/json"}
+
     for model in _MODELS:
         try:
-            response = client.models.generate_content(model=model, contents=prompt)
+            kwargs: dict = {"model": model, "contents": prompt}
+            if config is not None:
+                kwargs["config"] = config
+            response = client.models.generate_content(**kwargs)
             return response.text.strip()
         except Exception as e:
             err_str = str(e)
             print(f"[Gemini] {model} failed: {type(e).__name__}: {err_str}", flush=True)
             last_err = e
-            # 429이면 잠깐 대기 후 다음 모델 시도
             if "429" in err_str or "quota" in err_str.lower():
                 time.sleep(3)
             continue
@@ -103,11 +114,9 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 {{"score": 0.0~1.0 숫자, "signal": "BUY 또는 SELL 또는 HOLD", "signal_reason": "매수/매도/보류 판단 핵심 근거 1~2문장", "summary": "2~3문장 한국어 종합 의견", "reasons": ["근거1", "근거2", "근거3"]}}"""
 
     try:
-        text = _generate(prompt)
+        text = _generate(prompt, json_mode=True)
         text = re.sub(r"```(?:json)?\s*", "", text)
-        text = re.sub(r"```", "", text)
-        text = text.strip()
-        # JSON 객체만 추출 (앞뒤 불필요한 텍스트 제거)
+        text = re.sub(r"```", "", text).strip()
         start = text.find("{")
         end = text.rfind("}")
         if start != -1 and end > start:
