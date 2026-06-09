@@ -10,9 +10,8 @@ from google.genai.errors import ClientError
 
 from backend.core.config import settings
 
-# gemini-2.5-flash는 preview 전용으로 404 발생 → 제외
-# 무료 할당량이 높은 순서로 배치
 _MODELS = [
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
     "gemini-1.5-flash",
@@ -31,7 +30,10 @@ _RISK_MAP = {"low": "보수적", "medium": "중립적", "high": "공격적"}
 
 
 def _client() -> genai.Client:
-    return genai.Client(api_key=settings.GEMINI_API_KEY)
+    return genai.Client(
+        api_key=settings.GEMINI_API_KEY,
+        http_options={"api_version": "v1"},
+    )
 
 
 def _generate(prompt: str) -> str:
