@@ -32,7 +32,6 @@ import { useSearchContext } from "./layout";
 type DashboardItem = {
   ticker: string;
   name?: string;
-  score?: number;
   change?: string;
   price?: number;
   tag?: string;
@@ -85,14 +84,13 @@ export default function Page() {
     try {
       const stored = localStorage.getItem("watchlist");
       if (stored) {
-        const items: Array<{ ticker: string; lastScore?: number; lastPrice?: number; lastSector?: string }> =
+        const items: Array<{ ticker: string; lastPrice?: number; lastSector?: string }> =
           JSON.parse(stored);
         if (items.length > 0) {
           setDashboardItems(
             items.map((item) => ({
               ticker: item.ticker,
               name: KR_STOCK_NAMES[item.ticker],
-              score: item.lastScore !== undefined ? Math.round(item.lastScore * 100) : undefined,
               price: item.lastPrice,
               tag: item.lastSector,
               isFromWatchlist: true,
@@ -175,7 +173,6 @@ export default function Page() {
         return {
           ...item,
           name: r.name ?? item.name ?? KR_STOCK_NAMES[item.ticker],
-          score: Math.round(r.score * 100),
           price: r.price,
           tag: r.sector ?? item.tag,
           change:
@@ -385,7 +382,7 @@ export default function Page() {
                           key={item.ticker}
                           type="button"
                           onClick={() => handleTickerSearch?.(item.ticker)}
-                          className="grid w-full gap-4 p-5 text-left transition-colors hover:bg-slate-50 md:grid-cols-[1fr_130px_120px_110px]"
+                          className="grid w-full gap-4 p-5 text-left transition-colors hover:bg-slate-50 md:grid-cols-[1fr_130px_110px]"
                         >
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -412,25 +409,6 @@ export default function Page() {
                               <p className="mt-1 text-sm font-bold text-slate-950">
                                 {item.price.toLocaleString("ko-KR")}원
                               </p>
-                            ) : dashboardAutoLoading ? (
-                              <Loader2 className="mt-1.5 h-4 w-4 animate-spin text-slate-300" />
-                            ) : (
-                              <p className="mt-1 text-sm text-slate-400">—</p>
-                            )}
-                          </div>
-
-                          <div>
-                            <p className="text-xs font-semibold text-slate-400">AI Score</p>
-                            {item.score !== undefined ? (
-                              <div className="mt-2 flex items-center gap-2">
-                                <div className="h-2 w-16 overflow-hidden rounded-full bg-slate-200">
-                                  <div
-                                    className="h-full rounded-full bg-slate-950"
-                                    style={{ width: `${item.score}%` }}
-                                  />
-                                </div>
-                                <span className="text-sm font-bold text-slate-950">{item.score}</span>
-                              </div>
                             ) : dashboardAutoLoading ? (
                               <Loader2 className="mt-1.5 h-4 w-4 animate-spin text-slate-300" />
                             ) : (
