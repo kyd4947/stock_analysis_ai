@@ -10,11 +10,11 @@ from google import genai
 from backend.core.config import settings
 
 _MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash-001",
+    "gemini-2.5-flash",       # 20/day — 최고 품질
+    "gemini-3.5-flash",       # 20/day
+    "gemini-3.1-flash-lite",  # 500/day — 가장 여유 있음
+    "gemini-2.5-flash-lite",  # 20/day
+    "gemini-2.0-flash-lite",  # 20/day
 ]
 
 _STYLE_MAP = {
