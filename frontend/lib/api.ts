@@ -170,6 +170,29 @@ export async function fetchMarketInsight(): Promise<MarketInsight | null> {
   }
 }
 
+export type PriceResult = {
+  ticker: string;
+  name?: string;
+  price?: number;
+  change_rate?: number;
+  change_value?: number;
+};
+
+export async function fetchPrices(tickers: string[]): Promise<PriceResult[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/prices`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ tickers }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.results ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function searchStocks(
   query: string
 ): Promise<Array<{ ticker: string; name: string }>> {

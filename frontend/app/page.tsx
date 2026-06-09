@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { fetchMarketNews, fetchMarketInsight, screenStocks as screenStocksApi } from "@/lib/api";
+import { fetchMarketNews, fetchMarketInsight, fetchPrices } from "@/lib/api";
 import type { MarketInsight } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
@@ -77,7 +77,6 @@ export default function Page() {
     setLastTicker,
     clearResult,
     activeNav,
-    userProfile,
     macro,
   } = useSearchContext();
 
@@ -131,23 +130,16 @@ export default function Page() {
 
     setDashboardAutoLoading(true);
     const tickers = dashboardTickerKey.split(",");
-    screenStocksApi({
-      id: crypto.randomUUID(),
-      tickers,
-      user_profile: userProfile,
-      preferences: { min_score: 0, top_k: tickers.length, require_liquidity: true },
-    })
-      .then((result) => {
+    fetchPrices(tickers)
+      .then((results) => {
         setDashboardItems((prev) =>
           prev.map((item) => {
-            const r = result.results.find((s) => s.ticker === item.ticker);
+            const r = results.find((s) => s.ticker === item.ticker);
             if (!r) return item;
             return {
               ...item,
               name: r.name ?? item.name ?? KR_STOCK_NAMES[item.ticker],
-              score: Math.round(r.score * 100),
               price: r.price,
-              tag: r.sector ?? item.tag,
               change:
                 r.change_rate !== undefined
                   ? `${r.change_rate >= 0 ? "+" : ""}${r.change_rate.toFixed(1)}%`
