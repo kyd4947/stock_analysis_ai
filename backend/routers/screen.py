@@ -72,8 +72,8 @@ async def _process_ticker(
         loop.run_in_executor(None, get_naver_financials, ticker),
     )
 
-    # 가격 데이터 없으면 분석 불가 - 상장폐지 또는 지원하지 않는 종목
-    if not stock.get("price"):
+    # 이름도 가격도 없으면 → 존재하지 않는 티커
+    if not stock.get("price") and not stock.get("name"):
         return None
 
     price = stock.get("price") or 0

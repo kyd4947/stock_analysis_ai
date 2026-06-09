@@ -55,7 +55,18 @@ def get_stock_data(ticker: str) -> dict:
             return result
         data = r.json()
 
-        price = _num(data.get("closePrice"))
+        # closePrice 우선, 없으면 다른 필드 시도
+        price = (
+            _num(data.get("closePrice"))
+            or _num(data.get("currentPrice"))
+            or _num(data.get("tradePrice"))
+            or _num(data.get("nv"))
+        )
+        # 이름은 가격과 무관하게 저장 (유효 티커 판별에 사용)
+        name_val = data.get("stockName") or data.get("symbolCode")
+        if name_val:
+            result["name"] = name_val
+
         if not price:
             return result
 
