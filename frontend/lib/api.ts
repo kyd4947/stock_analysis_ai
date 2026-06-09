@@ -209,6 +209,35 @@ export async function searchStocks(
   }
 }
 
+export type RecommendStock = {
+  ticker: string;
+  name: string;
+  sector: string;
+  reason: string;
+  signal: "BUY" | "HOLD";
+};
+
+export type RecommendResult = {
+  message: string;
+  stocks: RecommendStock[];
+};
+
+export async function fetchRecommendation(
+  userProfile: ScreenRequest["user_profile"]
+): Promise<RecommendResult | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/recommend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ user_profile: userProfile }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function askStockQuestion(
   ticker: string,
   question: string,

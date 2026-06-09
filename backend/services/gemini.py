@@ -127,6 +127,42 @@ score는 0.0~1.0 사이 실수, signal은 BUY/SELL/HOLD 중 하나, 모든 텍�
         }
 
 
+def recommend_stocks(user_profile: dict, macro: dict) -> dict:
+    style = ", ".join(_STYLE_MAP.get(s, s) for s in user_profile.get("preferred_style", []))
+    horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
+    risk = _RISK_MAP.get(user_profile.get("risk_tolerance", "medium"), "중립적")
+
+    prompt = f"""당신은 한국 주식 투자 전문 AI 애널리스트입니다. 아래 투자자 프로필과 현재 시장 지표를 바탕으로 지금 당장 매수를 고려할 만한 한국 상장 주식 3~5종목을 구체적으로 추천하세요.
+
+[투자자 프로필]
+리스크 허용도: {risk} | 투자 스타일: {style or "설정 없음"} | 투자 기간: {horizon}
+
+[현재 시장 지표]
+USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macro.get("policy_rate", "N/A")}% | 미국 기준금리: {macro.get("fed_funds_rate", "N/A")}%
+
+아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요. JSON 외 다른 텍스트를 포함하지 마세요.
+
+{{"message": "이 프로필에 어울리는 종목 추천 이유를 2~3문장으로 설명", "stocks": [{{"ticker": "005930", "name": "삼성전자", "sector": "반도체/AI", "reason": "이 종목을 추천하는 핵심 근거 1~2문장", "signal": "BUY"}}]}}
+
+ticker는 한국 주식 6자리 숫자 코드, signal은 BUY 또는 HOLD, 모든 텍스트는 한국어로 작성하세요."""
+
+    try:
+        text = _generate(prompt)
+        text = re.sub(r"```(?:json)?\s*", "", text)
+        text = re.sub(r"```", "", text).strip()
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end > start:
+            text = text[start : end + 1]
+        return json.loads(text)
+    except Exception as e:
+        print(f"[Gemini] recommend_stocks error: {type(e).__name__}: {e}", flush=True)
+        return {
+            "message": "AI 추천 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+            "stocks": [],
+        }
+
+
 def answer_question(ticker: str, question: str, context_summary: str = "") -> str:
     ctx = f"\n[분석 컨텍스트]\n{context_summary}" if context_summary else ""
     prompt = f"""당신은 한국 주식 투자 전문가 AI입니다.{ctx}

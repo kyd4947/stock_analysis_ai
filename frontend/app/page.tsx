@@ -2,28 +2,25 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
-  Bell,
   BrainCircuit,
-  CalendarClock,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   Layers,
   LineChart,
   Loader2,
-  ShieldCheck,
+  MessageSquare,
   Sparkles,
   TrendingUp,
   XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { fetchMarketNews, fetchMarketInsight, fetchPrices } from "@/lib/api";
-import type { MarketInsight } from "@/lib/api";
+import { fetchMarketNews, fetchMarketInsight, fetchPrices, fetchRecommendation } from "@/lib/api";
+import type { MarketInsight, RecommendResult } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
 import { ProfilePage } from "@/components/ProfilePage";
@@ -111,6 +108,8 @@ export default function Page() {
   const [marketNews, setMarketNews] = useState<NewsArticle[]>([]);
   const [marketInsight, setMarketInsight] = useState<MarketInsight | null>(null);
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
+  const [recommendation, setRecommendation] = useState<RecommendResult | null>(null);
+  const [recommendLoading, setRecommendLoading] = useState(false);
   const autoFetchedKeyRef = useRef<string>("");
   const {
     screenResult,
@@ -122,7 +121,19 @@ export default function Page() {
     clearResult,
     activeNav,
     macro,
+    userProfile,
   } = useSearchContext();
+
+  async function handleRecommend() {
+    setRecommendLoading(true);
+    setRecommendation(null);
+    try {
+      const result = await fetchRecommendation(userProfile);
+      setRecommendation(result);
+    } finally {
+      setRecommendLoading(false);
+    }
+  }
 
   // localStorage 관심 종목 → 대시보드 목록 동기화
   useEffect(() => {
@@ -309,9 +320,6 @@ export default function Page() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-10 w-10 border-slate-200 bg-white">
-              <Bell className="h-4 w-4" />
-            </Button>
             <Button
               className="h-10 bg-slate-950 px-4 text-white hover:bg-slate-800"
               onClick={() => clearResult?.()}
@@ -480,33 +488,75 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-3">
-                {[
-                  {
-                    icon: ShieldCheck,
-                    title: "리스크 필터",
-                    text: "공시 리스크와 뉴스 악재를 자동으로 묶어 확인합니다.",
-                  },
-                  {
-                    icon: Activity,
-                    title: "가격 모멘텀",
-                    text: "단기 추세와 거래대금 변화를 함께 추적합니다.",
-                  },
-                  {
-                    icon: CalendarClock,
-                    title: "이벤트 캘린더",
-                    text: "실적 발표와 주요 경제 일정을 분석에 반영합니다.",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.title}
-                    className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
-                  >
-                    <item.icon className="h-5 w-5 text-slate-700" />
-                    <h3 className="mt-4 text-sm font-bold text-slate-950">{item.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{item.text}</p>
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="flex items-center gap-2 text-base font-bold text-slate-950">
+                      <MessageSquare className="h-5 w-5 text-slate-700" />
+                      AI 종목 추천
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      내 투자 설정 기반으로 AI가 지금 유망한 종목을 추천해 드립니다.
+                    </p>
                   </div>
-                ))}
+                  <Button
+                    onClick={handleRecommend}
+                    disabled={recommendLoading}
+                    className="shrink-0 bg-slate-950 text-white hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    {recommendLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    {recommendLoading ? "분석 중..." : "추천 받기"}
+                  </Button>
+                </div>
+
+                {recommendation && (
+                  <div className="mt-5 space-y-4">
+                    <div className="flex gap-3 rounded-xl bg-slate-950 p-4">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20">
+                        <Sparkles className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <p className="text-sm leading-6 text-slate-200">{recommendation.message}</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      {recommendation.stocks.map((stock) => (
+                        <button
+                          key={stock.ticker}
+                          type="button"
+                          onClick={() => handleTickerSearch?.(stock.ticker)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:bg-slate-100"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-bold text-slate-950">{stock.name}</span>
+                              <span className="text-xs text-slate-400">{stock.ticker}</span>
+                              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
+                                {stock.sector}
+                              </span>
+                            </div>
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                stock.signal === "BUY"
+                                  ? "bg-rose-50 text-rose-600"
+                                  : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {stock.signal}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-xs leading-5 text-slate-500">{stock.reason}</p>
+                          <p className="mt-1.5 text-xs font-medium text-slate-400">
+                            상세 AI 분석 보기 →
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 
