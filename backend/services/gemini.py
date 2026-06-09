@@ -11,10 +11,10 @@ from backend.core.config import settings
 
 _MODELS = [
     "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
+    "gemini-2.0-flash-001",
 ]
 
 _STYLE_MAP = {
@@ -50,12 +50,11 @@ def _generate(prompt: str) -> str:
             err_str = str(e)
             print(f"[Gemini] {model} failed: {type(e).__name__}: {err_str}", flush=True)
             last_err = e
-            # RPM(분당 한도) 초과면 잠깐 대기, RPD(일일 한도) 초과면 즉시 다음 모델로
-            if "429" in err_str or "quota" in err_str.lower():
-                if "daily" in err_str.lower() or "per_day" in err_str.lower() or "quota_exceeded" in err_str.lower():
-                    print(f"[Gemini] {model} 일일 한도 초과 → 다음 모델로", flush=True)
-                else:
-                    time.sleep(1)
+            if "429" in err_str or "quota" in err_str.lower() or "resource_exhausted" in err_str.lower():
+                print(f"[Gemini] {model} 할당량 초과 → 다음 모델로", flush=True)
+            elif "503" in err_str or "unavailable" in err_str.lower():
+                print(f"[Gemini] {model} 일시적 과부하 → 다음 모델로", flush=True)
+                time.sleep(2)
             continue
     raise RuntimeError(f"모든 Gemini 모델 오류: {last_err}")
 
