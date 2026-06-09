@@ -1,12 +1,11 @@
 """
 Gemini AI를 이용한 종목 분석 및 Q&A.
-google-genai SDK (2.x) 사용. 모델 할당량 초과 시 순서대로 fallback.
+google-genai SDK 사용. 모델 할당량 초과 시 순서대로 fallback.
 """
 import json
 import re
 import time
 from google import genai
-from google.genai.errors import ClientError
 
 from backend.core.config import settings
 
@@ -36,27 +35,15 @@ def _client() -> genai.Client:
     )
 
 
-def _generate(prompt: str, json_mode: bool = False) -> str:
-    """모델 fallback 포함 텍스트 생성. json_mode=True 시 JSON 응답 강제."""
+def _generate(prompt: str) -> str:
+    """모델 fallback 포함 텍스트 생성. 모든 오류에서 다음 모델 시도."""
     if not settings.GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY가 설정되지 않았습니다")
     client = _client()
     last_err: Exception | None = None
-
-    config = None
-    if json_mode:
-        try:
-            from google.genai import types as _t
-            config = _t.GenerateContentConfig(response_mime_type="application/json")
-        except Exception:
-            config = {"response_mime_type": "application/json"}
-
     for model in _MODELS:
         try:
-            kwargs: dict = {"model": model, "contents": prompt}
-            if config is not None:
-                kwargs["config"] = config
-            response = client.models.generate_content(**kwargs)
+            response = client.models.generate_content(model=model, contents=prompt)
             return response.text.strip()
         except Exception as e:
             err_str = str(e)
@@ -110,11 +97,14 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 [최근 뉴스]
 {news_text}
 
-반드시 아래 JSON 형식만 응답하세요 (마크다운 없이):
-{{"score": 0.0~1.0 숫자, "signal": "BUY 또는 SELL 또는 HOLD", "signal_reason": "매수/매도/보류 판단 핵심 근거 1~2문장", "summary": "2~3문장 한국어 종합 의견", "reasons": ["근거1", "근거2", "근거3"]}}"""
+위 데이터를 분석하여 아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요. JSON 외 다른 텍스트를 포함하지 마세요.
+
+{{"score": 0.75, "signal": "BUY", "signal_reason": "매수 판단 근거 1~2문장", "summary": "종합 의견 2~3문장", "reasons": ["근거1", "근거2", "근거3"]}}
+
+score는 0.0~1.0 사이 실수, signal은 BUY/SELL/HOLD 중 하나, 모든 텍스트는 한국어로 작성하세요."""
 
     try:
-        text = _generate(prompt, json_mode=True)
+        text = _generate(prompt)
         text = re.sub(r"```(?:json)?\s*", "", text)
         text = re.sub(r"```", "", text).strip()
         start = text.find("{")
