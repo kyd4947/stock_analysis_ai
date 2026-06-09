@@ -10,6 +10,9 @@ import {
   BrainCircuit,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Layers,
   LineChart,
   Loader2,
   ShieldCheck,
@@ -52,6 +55,48 @@ const SAMPLE_ITEMS: DashboardItem[] = [
   { ticker: "207940", name: "삼성바이오로직스", tag: "바이오" },
 ];
 
+const SECTOR_STOCKS: Record<string, Array<{ ticker: string; name: string }>> = {
+  "반도체/AI": [
+    { ticker: "005930", name: "삼성전자" },
+    { ticker: "000660", name: "SK하이닉스" },
+  ],
+  "플랫폼/IT": [
+    { ticker: "035420", name: "NAVER" },
+    { ticker: "035720", name: "카카오" },
+    { ticker: "017670", name: "SK텔레콤" },
+    { ticker: "030200", name: "KT" },
+  ],
+  "자동차": [
+    { ticker: "005380", name: "현대차" },
+    { ticker: "000270", name: "기아" },
+    { ticker: "012330", name: "현대모비스" },
+  ],
+  "배터리/소재": [
+    { ticker: "006400", name: "삼성SDI" },
+    { ticker: "051910", name: "LG화학" },
+    { ticker: "373220", name: "LG에너지솔루션" },
+    { ticker: "247540", name: "에코프로비엠" },
+  ],
+  "바이오": [
+    { ticker: "207940", name: "삼성바이오로직스" },
+    { ticker: "068270", name: "셀트리온" },
+  ],
+  "금융": [
+    { ticker: "105560", name: "KB금융" },
+    { ticker: "055550", name: "신한지주" },
+  ],
+  "에너지/인프라": [
+    { ticker: "267260", name: "HD현대일렉트릭" },
+    { ticker: "034020", name: "두산에너빌리티" },
+    { ticker: "096770", name: "SK이노베이션" },
+    { ticker: "005490", name: "POSCO홀딩스" },
+  ],
+  "가전/소비재": [
+    { ticker: "066570", name: "LG전자" },
+    { ticker: "003550", name: "LG" },
+  ],
+};
+
 const signals = [
   "미국 기준금리 동결 가능성이 성장주 밸류에이션 부담을 완화했습니다.",
   "원/달러 환율 변동성이 커져 수출주와 원가 민감 업종을 분리해서 볼 필요가 있습니다.",
@@ -65,6 +110,7 @@ export default function Page() {
   const [dashboardAutoLoading, setDashboardAutoLoading] = useState(false);
   const [marketNews, setMarketNews] = useState<NewsArticle[]>([]);
   const [marketInsight, setMarketInsight] = useState<MarketInsight | null>(null);
+  const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const autoFetchedKeyRef = useRef<string>("");
   const {
     screenResult,
@@ -545,6 +591,50 @@ export default function Page() {
                     ))
                   )}
                 </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+                  <Layers className="h-5 w-5" />
+                  섹터 탐색
+                </h2>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {Object.keys(SECTOR_STOCKS).map((sector) => (
+                    <button
+                      key={sector}
+                      onClick={() => setSelectedSector((s) => (s === sector ? null : sector))}
+                      className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        selectedSector === sector
+                          ? "bg-slate-950 text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {sector}
+                      {selectedSector === sector ? (
+                        <ChevronDown className="h-3 w-3" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {selectedSector && (
+                  <div className="mt-3 space-y-1">
+                    {SECTOR_STOCKS[selectedSector].map(({ ticker, name }) => (
+                      <button
+                        key={ticker}
+                        onClick={() => handleTickerSearch?.(ticker)}
+                        className="flex w-full items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-950">{name}</span>
+                          <span className="text-xs text-slate-400">{ticker}</span>
+                        </div>
+                        <span className="text-xs font-medium text-slate-400">AI 분석 →</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
