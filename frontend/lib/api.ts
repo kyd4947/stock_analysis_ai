@@ -3,7 +3,7 @@ export type ScreenRequest = {
   tickers: string[];
   user_profile: {
     risk_tolerance: "low" | "medium" | "high";
-    preferred_style: Array<"lowPER" | "lowPBR" | "highROE" | "value" | "quality">;
+    preferred_style: Array<"lowPER" | "lowPBR" | "highROE" | "value" | "quality" | "quant">;
     horizon: "short" | "mid" | "long";
   };
   preferences: {

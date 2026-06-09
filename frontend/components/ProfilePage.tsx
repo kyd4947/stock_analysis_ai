@@ -18,12 +18,19 @@ const STYLE_OPTIONS: {
   id: UserProfileType["preferred_style"][number];
   label: string;
   desc: string;
+  tooltip?: string;
 }[] = [
   { id: "lowPER", label: "저PER", desc: "저평가 주식" },
   { id: "lowPBR", label: "저PBR", desc: "자산 대비 저평가" },
   { id: "highROE", label: "고ROE", desc: "높은 수익성" },
   { id: "value", label: "가치투자", desc: "내재 가치 중심" },
   { id: "quality", label: "퀄리티", desc: "우량 기업 중심" },
+  {
+    id: "quant",
+    label: "퀀트",
+    desc: "수치 기반 체계적 선별",
+    tooltip: "PER·PBR·ROE·모멘텀 등 여러 재무 지표를 수식·통계 모델로 조합해 감정 없이 종목을 선별하는 방식입니다.",
+  },
 ];
 
 const HORIZON_OPTIONS: { id: UserProfileType["horizon"]; label: string; desc: string }[] = [
@@ -120,28 +127,29 @@ export function ProfilePage() {
               {STYLE_OPTIONS.map((opt) => {
                 const active = local.preferred_style.includes(opt.id);
                 return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => toggleStyle(opt.id)}
-                    className={cn(
-                      "flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors",
-                      active
-                        ? "border-slate-950 bg-slate-950 font-semibold text-white shadow-sm"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    )}
-                  >
-                    {active && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
-                    <span>{opt.label}</span>
-                    <span
+                  <div key={opt.id} className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleStyle(opt.id)}
                       className={cn(
-                        "text-xs",
-                        active ? "text-slate-300" : "text-slate-400"
+                        "flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors",
+                        active
+                          ? "border-slate-950 bg-slate-950 font-semibold text-white shadow-sm"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       )}
                     >
-                      {opt.desc}
-                    </span>
-                  </button>
+                      {active && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+                      <span>{opt.label}</span>
+                      <span className={cn("text-xs", active ? "text-slate-300" : "text-slate-400")}>
+                        {opt.desc}
+                      </span>
+                    </button>
+                    {opt.tooltip && (
+                      <p className="max-w-[220px] px-1 text-xs leading-5 text-slate-400">
+                        {opt.tooltip}
+                      </p>
+                    )}
+                  </div>
                 );
               })}
             </div>

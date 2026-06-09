@@ -23,6 +23,7 @@ _STYLE_MAP = {
     "highROE": "고ROE 수익성",
     "value": "가치투자",
     "quality": "퀄리티",
+    "quant": "퀀트(PER·PBR·ROE·모멘텀 등 다중 지표 기반 체계적 선별)",
 }
 _HORIZON_MAP = {"short": "단기(3개월 이내)", "mid": "중기(6~12개월)", "long": "장기(1년 이상)"}
 _RISK_MAP = {"low": "보수적", "medium": "중립적", "high": "공격적"}
