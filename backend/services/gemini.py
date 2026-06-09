@@ -50,8 +50,12 @@ def _generate(prompt: str) -> str:
             err_str = str(e)
             print(f"[Gemini] {model} failed: {type(e).__name__}: {err_str}", flush=True)
             last_err = e
+            # RPM(분당 한도) 초과면 잠깐 대기, RPD(일일 한도) 초과면 즉시 다음 모델로
             if "429" in err_str or "quota" in err_str.lower():
-                time.sleep(3)
+                if "daily" in err_str.lower() or "per_day" in err_str.lower() or "quota_exceeded" in err_str.lower():
+                    print(f"[Gemini] {model} 일일 한도 초과 → 다음 모델로", flush=True)
+                else:
+                    time.sleep(1)
             continue
     raise RuntimeError(f"모든 Gemini 모델 오류: {last_err}")
 
