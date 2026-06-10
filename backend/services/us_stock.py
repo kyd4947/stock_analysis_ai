@@ -52,12 +52,67 @@ def get_us_stock_data(ticker: str) -> dict:
             }
         except Exception as e:
             print(f"[US Stock] {ticker} {base} error: {e}", flush=True)
+
+    # Fallback: yfinance
+    try:
+        import yfinance as yf
+        t = yf.Ticker(ticker)
+        fast = t.fast_info
+        price = float(fast.last_price or 0)
+        prev = float(fast.previous_close or 0)
+        if price > 0:
+            change_val = round(price - prev, 2) if prev > 0 else 0.0
+            change_rate = round(change_val / prev * 100, 2) if prev > 0 else 0.0
+            info = t.info
+            print(f"[US Stock yf] {ticker} OK: ${price}", flush=True)
+            return {
+                "price": round(price, 2),
+                "change_val": change_val,
+                "change_rate": change_rate,
+                "positive": change_val >= 0,
+                "name": info.get("longName") or info.get("shortName") or ticker,
+                "sector": info.get("sector") or "",
+                "currency": info.get("currency") or "USD",
+            }
+    except Exception as e:
+        print(f"[US Stock yf] {ticker} error: {e}", flush=True)
     return {}
 
 
 def get_us_stock_financials(ticker: str) -> dict:
-    """Yahoo Finance에서 미국 주식 재무지표(PER, PBR, ROE) 조회."""
+    """미국 주식 재무지표(PER, PBR, ROE) 조회 — 3단계 fallback."""
     ticker = ticker.upper()
+
+    # 1차: v7/finance/quote (가장 가벼움, 인증 불필요)
+    for base in _BASES:
+        try:
+            r = requests.get(
+                f"{base}/v7/finance/quote",
+                params={"symbols": ticker},
+                headers={**_HEADERS, "Accept": "application/json, text/plain, */*"},
+                timeout=8,
+            )
+            if not r.ok:
+                continue
+            results = (r.json().get("quoteResponse") or {}).get("result") or []
+            if not results:
+                continue
+            q = results[0]
+            per = q.get("trailingPE") or q.get("forwardPE")
+            pbr = q.get("priceToBook")
+            roe_raw = q.get("returnOnEquity")
+            roe = round(roe_raw * 100, 2) if roe_raw is not None else None
+            if any(v is not None for v in [per, pbr, roe]):
+                print(f"[US Fin v7] {ticker} OK: PER={per} PBR={pbr} ROE={roe}", flush=True)
+                return {
+                    "per": round(per, 2) if per else None,
+                    "pbr": round(pbr, 2) if pbr else None,
+                    "roe": roe,
+                }
+        except Exception as e:
+            print(f"[US Fin v7] {ticker} {base} error: {e}", flush=True)
+
+    # 2차: v10/finance/quoteSummary (쿠키 없이 가끔 동작)
     for base in _BASES:
         try:
             r = requests.get(
@@ -73,19 +128,37 @@ def get_us_stock_financials(ticker: str) -> dict:
                 continue
             stats = result.get("defaultKeyStatistics", {})
             fin = result.get("financialData", {})
-
             per = _raw_val(stats, "trailingPE") or _raw_val(stats, "forwardPE")
             pbr = _raw_val(stats, "priceToBook")
             roe_raw = _raw_val(fin, "returnOnEquity")
             roe = round(roe_raw * 100, 2) if roe_raw is not None else None
-
-            return {
-                "per": round(per, 2) if per else None,
-                "pbr": round(pbr, 2) if pbr else None,
-                "roe": roe,
-            }
+            if any(v is not None for v in [per, pbr, roe]):
+                print(f"[US Fin v10] {ticker} OK: PER={per} PBR={pbr} ROE={roe}", flush=True)
+                return {
+                    "per": round(per, 2) if per else None,
+                    "pbr": round(pbr, 2) if pbr else None,
+                    "roe": roe,
+                }
         except Exception as e:
-            print(f"[US Stock Fin] {ticker} error: {e}", flush=True)
+            print(f"[US Fin v10] {ticker} {base} error: {e}", flush=True)
+
+    # 3차: yfinance (쿠키·인증 자동 처리 — 가장 신뢰성 높음)
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker).info
+        per = info.get("trailingPE") or info.get("forwardPE")
+        pbr = info.get("priceToBook")
+        roe_raw = info.get("returnOnEquity")
+        roe = round(roe_raw * 100, 2) if roe_raw is not None else None
+        print(f"[US Fin yf] {ticker} OK: PER={per} PBR={pbr} ROE={roe}", flush=True)
+        return {
+            "per": round(per, 2) if per else None,
+            "pbr": round(pbr, 2) if pbr else None,
+            "roe": roe,
+        }
+    except Exception as e:
+        print(f"[US Fin yf] {ticker} error: {e}", flush=True)
+
     return {}
 
 

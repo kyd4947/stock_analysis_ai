@@ -5,3 +5,4 @@ requests>=2.31.0
 google-genai>=0.8.0
 python-dotenv>=1.0.0
 slowapi>=0.1.9
+yfinance>=0.2.40
