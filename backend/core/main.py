@@ -4,8 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.core.limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
-from backend.routers import screen, macro, chat, search, market_insight, prices, recommend, auth
-from backend.services.user_db import init_db
+from backend.routers import screen, macro, chat, search, market_insight, prices, recommend
 
 # ALLOWED_ORIGINS 환경변수: 쉼표로 구분된 허용 도메인 목록
 # 예: https://your-app.vercel.app,https://your-custom-domain.com
@@ -17,7 +16,6 @@ if not ALLOWED_ORIGINS:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
     loop = asyncio.get_event_loop()
     try:
         await asyncio.wait_for(
@@ -47,10 +45,9 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Accept", "Authorization"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
-app.include_router(auth.router)
 app.include_router(screen.router, prefix="/api")
 app.include_router(macro.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")

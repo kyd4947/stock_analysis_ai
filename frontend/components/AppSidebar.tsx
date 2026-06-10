@@ -9,7 +9,6 @@ import {
   Landmark,
   LineChart,
   Loader2,
-  LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -23,7 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { MacroSnapshot, EmploymentIndicator } from "@/lib/api";
-import type { AuthUser } from "@/lib/auth";
 import { StockSearchBox } from "@/components/StockSearchBox";
 
 export type NavItem = "analysis" | "watchlist" | "portfolio" | "profile";
@@ -39,8 +37,6 @@ type AppSidebarProps = {
   macro: MacroSnapshot | null;
   macroLoading: boolean;
   macroError?: boolean;
-  authUser?: AuthUser | null;
-  onLogout?: () => void;
 };
 
 const NAV_ITEMS: { id: NavItem; label: string; helper: string; icon: React.ElementType }[] = [
@@ -194,8 +190,6 @@ export function AppSidebar({
   macro,
   macroLoading,
   macroError,
-  authUser,
-  onLogout,
 }: AppSidebarProps) {
   return (
     <aside
@@ -299,7 +293,7 @@ export function AppSidebar({
       </div>
 
       {!collapsed && (
-        <div className="border-t border-slate-200/70 px-3 py-3 space-y-1">
+        <div className="border-t border-slate-200/70 px-3 py-3">
           <button
             type="button"
             onClick={() => onNavChange("profile")}
@@ -309,25 +303,6 @@ export function AppSidebar({
             분석 설정
             <ChevronLeft className="ml-auto h-4 w-4 rotate-180 text-slate-300" />
           </button>
-          {authUser && (
-            <div className="flex items-center gap-2 rounded-lg px-3 py-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
-                {authUser.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-slate-700">{authUser.name}</p>
-                <p className="truncate text-[10px] text-slate-400">{authUser.email}</p>
-              </div>
-              <button
-                type="button"
-                title="로그아웃"
-                onClick={onLogout}
-                className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-500"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
         </div>
       )}
     </aside>
