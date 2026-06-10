@@ -166,9 +166,11 @@ def recommend_stocks(user_profile: dict, macro: dict, candidates: list[dict]) ->
 
     rows = []
     for c in candidates:
+        price = c.get("price")
+        price_str = f"{price:,}원" if price else "N/A"
         rows.append(
             f"- {c['name']}({c['ticker']}) [{c['sector']}]"
-            f" 현재가:{_f(c.get('price') and f\"{c['price']:,}원\")}"
+            f" 현재가:{price_str}"
             f" PER:{_f(c.get('per'), '배')}"
             f" PBR:{_f(c.get('pbr'), '배')}"
             f" ROE:{_f(c.get('roe'), '%')}"
