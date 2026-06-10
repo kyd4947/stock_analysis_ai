@@ -215,8 +215,29 @@ def _ecos_cpi_yoy() -> float | None:
 
 
 def _get_vkospi() -> dict | None:
-    """VKOSPI(코스피 변동성 지수) — NAVER Finance 우선, Yahoo Finance fallback."""
-    # 1차: NAVER Finance /api/index/VKOSPI/basic
+    """VKOSPI(코스피 변동성 지수) — yfinance 우선, NAVER Finance fallback."""
+
+    # 1차: yfinance ^VKOSPI (가장 신뢰성 높음)
+    try:
+        import yfinance as yf
+        t = yf.Ticker("^VKOSPI")
+        hist = t.history(period="5d")
+        if not hist.empty:
+            price = float(hist["Close"].iloc[-1])
+            prev  = float(hist["Close"].iloc[-2]) if len(hist) > 1 else price
+            change_val  = round(price - prev, 2)
+            change_rate = round(change_val / prev * 100, 2) if prev else 0.0
+            print(f"[Macro] VKOSPI yf OK: {price} ({change_rate:+.2f}%)", flush=True)
+            return {
+                "price": round(price, 2),
+                "change_val": change_val,
+                "change_rate": change_rate,
+                "positive": change_val >= 0,
+            }
+    except Exception as e:
+        print(f"[Macro] VKOSPI yf error: {e}", flush=True)
+
+    # 2차: NAVER Finance /api/index/VKOSPI/basic
     try:
         r = requests.get(
             "https://m.stock.naver.com/api/index/VKOSPI/basic",
@@ -225,7 +246,6 @@ def _get_vkospi() -> dict | None:
         )
         if r.ok:
             data = r.json()
-            # NAVER는 closePrice / indexLevel / nIndexVal 등 여러 필드 사용
             raw = (
                 data.get("closePrice")
                 or data.get("nIndexVal")
@@ -237,11 +257,12 @@ def _get_vkospi() -> dict | None:
             if price:
                 change_str = str(
                     data.get("compareToPreviousClosePrice")
-                    or data.get("priceChangeValue")
-                    or "0"
+                    or data.get("priceChangeValue") or "0"
                 ).replace(",", "")
                 change_val = float(change_str) if change_str else 0.0
-                change_rate_str = str(data.get("fluctuationsRatio") or data.get("priceChangeRate") or "0")
+                change_rate_str = str(
+                    data.get("fluctuationsRatio") or data.get("priceChangeRate") or "0"
+                )
                 change_rate = float(change_rate_str) if change_rate_str else 0.0
                 print(f"[Macro] VKOSPI NAVER OK: {price} ({change_rate:+.2f}%)", flush=True)
                 return {
@@ -253,13 +274,8 @@ def _get_vkospi() -> dict | None:
     except Exception as e:
         print(f"[Macro] VKOSPI NAVER error: {e}", flush=True)
 
-    # 2차: Yahoo Finance ^VKOSPI
-    result = _yahoo_us_index("^VKOSPI", "VKOSPI")
-    if result:
-        return result
-
-    # 3차: Yahoo Finance ^VKOSPI200 (KOSPI200 변동성)
-    return _yahoo_us_index("^VKOSPI200", "VKOSPI200")
+    # 3차: Yahoo Finance raw HTTP ^VKOSPI
+    return _yahoo_us_index("^VKOSPI", "VKOSPI")
 
 
 def _yahoo_us_index(symbol: str, label: str) -> dict | None:
