@@ -332,6 +332,22 @@ def _get_vkospi() -> dict | None:
     except Exception as e:
         print(f"[Macro] VKOSPI fchart error: {e}", flush=True)
 
+    # 4차: KOSPI 역사적 변동성 (연환산) — Yahoo Finance ^KS11 (NAVER 차단 시 fallback)
+    # VKOSPI 값 범위(10~40)와 동일한 범위를 가지므로 공포지수 대리값으로 적합
+    try:
+        import yfinance as yf, math
+        hist = yf.Ticker("^KS11").history(period="30d")
+        closes = hist["Close"].tolist()
+        if len(closes) >= 5:
+            log_rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
+            mean = sum(log_rets) / len(log_rets)
+            var = sum((r - mean) ** 2 for r in log_rets) / max(len(log_rets) - 1, 1)
+            ann_vol = round(math.sqrt(var) * math.sqrt(252) * 100, 2)
+            print(f"[Macro] VKOSPI proxy (KOSPI hist vol): {ann_vol}", flush=True)
+            return {"price": ann_vol, "change_val": 0.0, "change_rate": 0.0, "positive": True}
+    except Exception as e:
+        print(f"[Macro] VKOSPI hist vol error: {e}", flush=True)
+
     return None
 
 
