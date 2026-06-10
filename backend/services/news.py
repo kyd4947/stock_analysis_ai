@@ -11,9 +11,44 @@ import datetime
 import zoneinfo
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
+from urllib.parse import urlparse
 
 import requests
 from backend.core.config import settings
+
+# 차단할 TLD — 한국 금융 뉴스와 무관한 스팸성 도메인에 주로 사용됨
+_SPAM_TLDS = frozenset([
+    ".ru", ".xyz", ".info", ".tk", ".ml", ".ga", ".cf",
+    ".pw", ".top", ".click", ".link", ".win", ".bid", ".loan",
+])
+
+# 제목에 이 키워드가 포함되면 스팸/도박 콘텐츠로 간주
+_SPAM_TITLE_KEYWORDS = frozenset([
+    "슬롯", "카지노", "바카라", "도박", "베팅", "토토", "먹튀",
+    "온라인카지노", "casino", "slot", "poker", "betting",
+])
+
+
+def _is_spam(article: dict) -> bool:
+    """스팸·도박 기사 감지: URL TLD + 제목 키워드 이중 필터."""
+    url = article.get("url", "")
+    title = article.get("title", "").lower()
+
+    # 제목 키워드 필터
+    for kw in _SPAM_TITLE_KEYWORDS:
+        if kw in title:
+            return True
+
+    # URL TLD 필터
+    try:
+        hostname = urlparse(url).hostname or ""
+        for tld in _SPAM_TLDS:
+            if hostname.endswith(tld):
+                return True
+    except Exception:
+        pass
+
+    return False
 
 _KST = zoneinfo.ZoneInfo("Asia/Seoul")
 
@@ -81,8 +116,9 @@ def _parse_rss(content: bytes) -> list[dict]:
             source_el = item.find("source")
             source = (source_el.text if source_el is not None else "").strip()
             pub = (item.findtext("pubDate") or "").strip()
-            if title and link and "[Removed]" not in title:
-                result.append({"title": title, "url": link, "source": source, "publishedAt": pub})
+            article = {"title": title, "url": link, "source": source, "publishedAt": pub}
+            if title and link and "[Removed]" not in title and not _is_spam(article):
+                result.append(article)
         return result
     except Exception as e:
         print(f"[News] RSS parse error: {e}", flush=True)
