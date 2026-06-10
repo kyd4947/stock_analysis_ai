@@ -37,12 +37,15 @@ type StockScreenCardProps = {
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 function renderInline(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/);
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**"))
       return <strong key={i} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
     if (part.startsWith("*") && part.endsWith("*"))
       return <em key={i} className="italic">{part.slice(1, -1)}</em>;
+    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (link)
+      return <a key={i} href={link[2]} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800 break-all">{link[1]}</a>;
     return part;
   });
 }
@@ -158,6 +161,11 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
     }
   }, [messages, chatOpen]);
 
+  const newsContext = item.news?.articles
+    ?.slice(0, 5)
+    .map((a, idx) => `뉴스${idx + 1}: ${a.title} [출처: ${a.source}] [URL: ${a.url}]`)
+    .join(" || ");
+
   const contextSummary = [
     `종목: ${item.ticker}`,
     item.price ? `현재가: ${item.price.toLocaleString("ko-KR")}원` : null,
@@ -169,6 +177,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
     item.dart.risk_flags.length > 0
       ? `리스크 공시: ${item.dart.risk_flags.join(", ")}`
       : null,
+    newsContext ? `관련 뉴스(URL 포함): ${newsContext}` : null,
   ]
     .filter(Boolean)
     .join(" | ");
@@ -609,7 +618,12 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                     {msg.role === "user" ? (
                       msg.content
                     ) : (
-                      <MarkdownMessage content={msg.content} />
+                      <>
+                        <MarkdownMessage content={msg.content} />
+                        <p className="mt-2 border-t border-slate-100 pt-2 text-[10px] text-slate-400">
+                          투자 판단은 사용자 본인의 몫입니다.
+                        </p>
+                      </>
                     )}
                   </div>
                 </div>
