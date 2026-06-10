@@ -5,7 +5,6 @@ from backend.services import gemini as gemini_svc
 from backend.services.macro_service import get_macro_snapshot
 from backend.services.stock import get_stock_data
 from backend.core.limiter import limiter
-from backend.routers.screen import _cache_get
 
 router = APIRouter()
 
@@ -89,23 +88,5 @@ async def recommend(request: Request, req: RecommendRequest):
                 stock["ticker"] = correct
             else:
                 print(f"[Recommend] 알 수 없는 ticker: {t!r} (name={stock.get('name')!r})", flush=True)
-
-    # screen 캐시에 최근 종합 분석 결과가 있으면 해당 시그널로 덮어씀
-    # → 추천(기초 재무 기반)과 상세분석(뉴스·기술 지표 포함) 시그널 불일치 해소
-    filtered = []
-    for stock in result.get("stocks", []):
-        ticker = stock.get("ticker", "")
-        cached = _cache_get(ticker)
-        if cached:
-            cached_signal = cached.get("signal", "BUY")
-            if cached_signal in ("WATCH", "SELL"):
-                # 종합 분석에서 관망/매도 판정 → 추천 목록에서 제외
-                print(f"[Recommend] {ticker} 캐시 시그널={cached_signal} → 추천 제외", flush=True)
-                continue
-            # BUY / HOLD → 캐시 시그널로 업데이트
-            stock["signal"] = cached_signal
-            stock["reason"] = cached.get("signal_reason") or stock.get("reason", "")
-        filtered.append(stock)
-    result["stocks"] = filtered
 
     return result

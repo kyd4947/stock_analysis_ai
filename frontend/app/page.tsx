@@ -572,13 +572,13 @@ export default function Page() {
                                 {stock.sector}
                               </span>
                             </div>
-                            <span className="shrink-0 rounded-full border border-rose-200 px-2.5 py-0.5 text-xs font-bold text-rose-600">
-                              {stock.signal} <span className="font-normal text-rose-400">(예비)</span>
+                            <span className="shrink-0 rounded-full bg-violet-50 border border-violet-200 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
+                              AI 추천
                             </span>
                           </div>
                           <p className="mt-2 text-xs leading-5 text-slate-500">{stock.reason}</p>
                           <p className="mt-1.5 text-xs font-medium text-slate-400">
-                            종합 AI 분석 보기 (뉴스·기술 지표 포함) →
+                            클릭하면 뉴스·기술 지표 포함 종합 시그널(매수/관망 등) 확인 →
                           </p>
                         </button>
                       ))}
