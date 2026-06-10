@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { fetchMarketNews, fetchMarketInsight, fetchPrices, fetchRecommendation } from "@/lib/api";
-import type { MarketInsight, RecommendResult, EmploymentIndicator } from "@/lib/api";
+import type { MarketInsight, RecommendResult } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
 import { ProfilePage } from "@/components/ProfilePage";
@@ -358,38 +358,6 @@ export default function Page() {
             </div>
           ))}
         </section>
-
-        {/* ── 고용지표 ── */}
-        {macro?.employment && Object.keys(macro.employment).length > 0 && (
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {(Object.values(macro.employment) as EmploymentIndicator[]).map((ind) => {
-              const signalStyle =
-                ind.signal === "호재"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                  : ind.signal === "악재"
-                  ? "bg-rose-50 text-rose-700 border-rose-100"
-                  : "bg-amber-50 text-amber-700 border-amber-100";
-              return (
-                <div
-                  key={ind.label}
-                  className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-500">{ind.label}</span>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${signalStyle}`}>
-                      {ind.signal}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-xl font-bold text-slate-950">
-                    {ind.label.includes("고용") && ind.value > 0 ? "+" : ""}
-                    {ind.value.toLocaleString()}
-                    <span className="ml-0.5 text-sm font-medium text-slate-400">{ind.unit}</span>
-                  </p>
-                </div>
-              );
-            })}
-          </section>
-        )}
 
         {/* ── 분석 로딩 중 ── */}
         {screenLoading && (

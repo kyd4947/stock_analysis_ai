@@ -15,11 +15,13 @@ import {
   Settings2,
   Sparkles,
   Star,
+  TrendingDown,
+  Users,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { MacroSnapshot } from "@/lib/api";
+import type { MacroSnapshot, EmploymentIndicator } from "@/lib/api";
 import { StockSearchBox } from "@/components/StockSearchBox";
 
 export type NavItem = "analysis" | "watchlist" | "portfolio" | "profile";
@@ -80,6 +82,18 @@ function MacroPanel({
     },
   ];
 
+  const employment = macro?.employment;
+  const empEntries: Array<EmploymentIndicator & { icon: React.ElementType }> = employment
+    ? (
+        [
+          employment.us_unemployment && { ...employment.us_unemployment, icon: Users },
+          employment.us_nonfarm_payrolls && { ...employment.us_nonfarm_payrolls, icon: TrendingDown },
+          employment.us_initial_claims && { ...employment.us_initial_claims, icon: TrendingDown },
+          employment.kr_unemployment && { ...employment.kr_unemployment, icon: Users },
+        ] as Array<(EmploymentIndicator & { icon: React.ElementType }) | false>
+      ).filter((x): x is EmploymentIndicator & { icon: React.ElementType } => Boolean(x))
+    : [];
+
   if (compact) {
     return (
       <div className="space-y-2 border-t border-slate-200/70 px-2 py-3">
@@ -124,6 +138,42 @@ function MacroPanel({
             </div>
           </div>
         ))}
+
+        {empEntries.length > 0 && (
+          <>
+            <div className="my-1 border-t border-slate-100" />
+            {empEntries.map((ind) => {
+              const signalCls =
+                ind.signal === "호재"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : ind.signal === "악재"
+                  ? "bg-rose-50 text-rose-700"
+                  : "bg-amber-50 text-amber-700";
+              const valueStr =
+                (ind.label.includes("고용") && ind.value > 0 ? "+" : "") +
+                ind.value.toLocaleString();
+              return (
+                <div key={ind.label} className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                      <ind.icon className="h-4 w-4" />
+                    </div>
+                    <span className="truncate text-xs font-medium text-slate-500">{ind.label}</span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="text-sm font-bold text-slate-900">
+                      {valueStr}
+                      <span className="ml-0.5 text-[11px] font-medium text-slate-400">{ind.unit}</span>
+                    </span>
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${signalCls}`}>
+                      {ind.signal}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
     </section>
   );
