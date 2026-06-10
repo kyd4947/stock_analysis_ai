@@ -27,8 +27,11 @@ def _cache_set(ticker: str, value: dict):
 from backend.services.stock import get_stock_data, get_naver_financials
 from backend.services.macro_service import get_macro_snapshot
 from backend.services.dart import get_dart_disclosures, get_shareholders, get_dart_financials, name_to_ticker
-from backend.services.news import get_stock_news, get_us_market_news
+from backend.services.news import get_stock_news, get_us_market_news, get_us_stock_news
+from backend.services.us_stock import get_us_stock_data, get_us_stock_financials
 from backend.services import gemini as gemini_svc
+
+_US_TICKER_RE = re.compile(r"^[A-Z]{1,5}$")
 
 router = APIRouter()
 
@@ -73,6 +76,78 @@ def _resolve_ticker(ticker: str) -> str:
     return found if found else stripped
 
 
+async def _process_us_ticker(
+    ticker: str,
+    user_profile: dict,
+    macro: dict,
+    min_score: float,
+    loop: asyncio.AbstractEventLoop,
+) -> dict | None:
+    cached = _cache_get(ticker)
+    if cached:
+        print(f"[Screen/{ticker}] US 캐시 히트", flush=True)
+        return cached if cached["score"] >= min_score else None
+
+    stock, fin, news = await asyncio.gather(
+        loop.run_in_executor(None, get_us_stock_data, ticker),
+        loop.run_in_executor(None, get_us_stock_financials, ticker),
+        loop.run_in_executor(None, get_us_stock_news, ticker),
+    )
+
+    if not stock.get("price"):
+        return None
+
+    financial = {
+        "per": fin.get("per"),
+        "pbr": fin.get("pbr"),
+        "roe": fin.get("roe"),
+    }
+
+    analysis = await loop.run_in_executor(
+        None,
+        lambda: gemini_svc.analyze_us_stock(
+            ticker=ticker,
+            user_profile=user_profile,
+            macro=macro,
+            financial=financial,
+            news_articles=news,
+            price=stock["price"],
+        ),
+    )
+
+    score = analysis.get("score", 0.5)
+    if score < min_score:
+        return None
+
+    result = {
+        "ticker": ticker,
+        "name": stock.get("name") or ticker,
+        "score": score,
+        "signal": analysis.get("signal", "HOLD"),
+        "signal_reason": analysis.get("signal_reason", ""),
+        "summary": analysis.get("summary", ""),
+        "reasons": analysis.get("reasons", []),
+        "price": stock.get("price"),
+        "change_rate": stock.get("change_rate"),
+        "change_value": stock.get("change_val"),
+        "sector": stock.get("sector"),
+        "macro": {
+            "exchange_rate_usdkrw": macro.get("exchange_rate_usdkrw") or 0,
+            "policy_rate": macro.get("policy_rate") or 0,
+            "inflation_yoy": macro.get("inflation_yoy") or 0,
+            "us_10y_yield": macro.get("us_10y_yield"),
+            "fed_funds_rate": macro.get("fed_funds_rate"),
+        },
+        "financial": financial,
+        "dart": {"risk_flags": [], "highlights": []},
+        "news": {"articles": news} if news else None,
+        "shareholders": None,
+        "is_us": True,
+    }
+    _cache_set(ticker, result)
+    return result
+
+
 async def _process_ticker(
     ticker: str,
     user_profile: dict,
@@ -82,6 +157,10 @@ async def _process_ticker(
     us_news: list[dict],
 ) -> dict | None:
     ticker = _resolve_ticker(ticker)
+
+    # 미국 티커 감지: 영문 1~5자 (숫자 없음)
+    if _US_TICKER_RE.match(ticker.upper()):
+        return await _process_us_ticker(ticker.upper(), user_profile, macro, min_score, loop)
 
     cached = _cache_get(ticker)
     if cached:

@@ -251,41 +251,53 @@ export default function Page() {
     {
       label: "KOSPI",
       value: macro?.kospi
-        ? macro.kospi.price.toLocaleString("ko-KR", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })
+        ? macro.kospi.price.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : "—",
-      change: macro?.kospi
-        ? `${macro.kospi.change_rate >= 0 ? "+" : ""}${macro.kospi.change_rate.toFixed(2)}%`
-        : "—",
+      change: macro?.kospi ? `${macro.kospi.change_rate >= 0 ? "+" : ""}${macro.kospi.change_rate.toFixed(2)}%` : "—",
       positive: macro?.kospi ? macro.kospi.positive : true,
     },
     {
       label: "KOSDAQ",
       value: macro?.kosdaq
-        ? macro.kosdaq.price.toLocaleString("ko-KR", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })
+        ? macro.kosdaq.price.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : "—",
-      change: macro?.kosdaq
-        ? `${macro.kosdaq.change_rate >= 0 ? "+" : ""}${macro.kosdaq.change_rate.toFixed(2)}%`
-        : "—",
+      change: macro?.kosdaq ? `${macro.kosdaq.change_rate >= 0 ? "+" : ""}${macro.kosdaq.change_rate.toFixed(2)}%` : "—",
       positive: macro?.kosdaq ? macro.kosdaq.positive : false,
     },
     {
       label: "USD/KRW",
       value: macro?.usd_krw
-        ? macro.usd_krw.price.toLocaleString("ko-KR", {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
-          })
+        ? macro.usd_krw.price.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
         : "—",
-      change: macro?.usd_krw
-        ? `${macro.usd_krw.change_rate >= 0 ? "+" : ""}${macro.usd_krw.change_rate.toFixed(2)}%`
-        : "—",
+      change: macro?.usd_krw ? `${macro.usd_krw.change_rate >= 0 ? "+" : ""}${macro.usd_krw.change_rate.toFixed(2)}%` : "—",
       positive: macro?.usd_krw ? macro.usd_krw.positive : false,
+    },
+  ];
+
+  const usMarketCards = [
+    {
+      label: "S&P 500",
+      value: macro?.sp500
+        ? macro.sp500.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : "—",
+      change: macro?.sp500 ? `${macro.sp500.change_rate >= 0 ? "+" : ""}${macro.sp500.change_rate.toFixed(2)}%` : "—",
+      positive: macro?.sp500 ? macro.sp500.positive : true,
+    },
+    {
+      label: "NASDAQ",
+      value: macro?.nasdaq
+        ? macro.nasdaq.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : "—",
+      change: macro?.nasdaq ? `${macro.nasdaq.change_rate >= 0 ? "+" : ""}${macro.nasdaq.change_rate.toFixed(2)}%` : "—",
+      positive: macro?.nasdaq ? macro.nasdaq.positive : false,
+    },
+    {
+      label: "Dow Jones",
+      value: macro?.dji
+        ? macro.dji.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : "—",
+      change: macro?.dji ? `${macro.dji.change_rate >= 0 ? "+" : ""}${macro.dji.change_rate.toFixed(2)}%` : "—",
+      positive: macro?.dji ? macro.dji.positive : false,
     },
   ];
 
@@ -331,33 +343,42 @@ export default function Page() {
         </header>
 
         {/* ── 시장 지수 카드 ── */}
-        <section className="grid gap-3 md:grid-cols-3">
-          {marketCards.map((card) => (
-            <div
-              key={card.label}
-              className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-500">{card.label}</span>
-                {card.change !== "—" && (
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${
-                      card.positive ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
-                    }`}
-                  >
-                    {card.positive ? (
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowDownRight className="h-3.5 w-3.5" />
-                    )}
-                    {card.change}
-                  </span>
-                )}
+        <div className="space-y-2">
+          {/* 한국 지수 */}
+          <section className="grid gap-3 md:grid-cols-3">
+            {marketCards.map((card) => (
+              <div key={card.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-500">{card.label}</span>
+                  {card.change !== "—" && (
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${card.positive ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>
+                      {card.positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                      {card.change}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-4 text-2xl font-bold text-slate-950">{card.value}</p>
               </div>
-              <p className="mt-4 text-2xl font-bold text-slate-950">{card.value}</p>
-            </div>
-          ))}
-        </section>
+            ))}
+          </section>
+          {/* 미국 지수 */}
+          <section className="grid gap-3 md:grid-cols-3">
+            {usMarketCards.map((card) => (
+              <div key={card.label} className="rounded-lg border border-slate-100 bg-slate-50 p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400">{card.label}</span>
+                  {card.change !== "—" && (
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${card.positive ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>
+                      {card.positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                      {card.change}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-3 text-xl font-bold text-slate-700">{card.value}</p>
+              </div>
+            ))}
+          </section>
+        </div>
 
         {/* ── 분석 로딩 중 ── */}
         {screenLoading && (

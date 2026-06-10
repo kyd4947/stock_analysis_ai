@@ -260,3 +260,20 @@ def get_market_news() -> list[dict]:
             return result
 
     return []
+
+
+def get_us_stock_news(ticker: str, limit: int = 5) -> list[dict]:
+    """미국 개별 종목 뉴스 — Google News RSS (영어)."""
+    articles = []
+    try:
+        r = requests.get(
+            "https://news.google.com/rss/search",
+            params={"q": f"{ticker} stock when:1d", "hl": "en-US", "gl": "US", "ceid": "US:en"},
+            headers=_HEADERS,
+            timeout=8,
+        )
+        if r.ok:
+            articles = _parse_rss(r.content)[:limit]
+    except Exception as e:
+        print(f"[News] US stock {ticker} error: {e}", flush=True)
+    return _sort_by_date(articles)[:limit]

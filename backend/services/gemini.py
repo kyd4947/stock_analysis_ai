@@ -156,6 +156,78 @@ signal 선택 기준:
         }
 
 
+def analyze_us_stock(
+    ticker: str,
+    user_profile: dict,
+    macro: dict,
+    financial: dict,
+    news_articles: list[dict],
+    price: float,
+) -> dict:
+    horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
+    risk = _RISK_MAP.get(user_profile.get("risk_tolerance", "medium"), "중립적")
+    style = ", ".join(_STYLE_MAP.get(s, s) for s in user_profile.get("preferred_style", []))
+
+    news_text = "\n".join(f"- {a['title']}" for a in news_articles[:3]) or "No recent news"
+
+    sp500_str = f"{macro['sp500']['change_rate']:+.2f}%" if macro.get("sp500") else "N/A"
+    nasdaq_str = f"{macro['nasdaq']['change_rate']:+.2f}%" if macro.get("nasdaq") else "N/A"
+    dji_str = f"{macro['dji']['change_rate']:+.2f}%" if macro.get("dji") else "N/A"
+
+    def _fmt(v):
+        return str(v) if v is not None else "N/A"
+
+    prompt = f"""당신은 미국 주식 투자 AI 애널리스트입니다. 아래 데이터를 종합하여 {ticker} 종목을 분석하세요.
+
+[투자자 프로필]
+리스크 선호: {risk} | 투자 스타일: {style or "없음"} | 투자 기간: {horizon}
+
+[미국 시장 환경]
+S&P500: {sp500_str} | NASDAQ: {nasdaq_str} | Dow Jones: {dji_str}
+미국 기준금리: {_fmt(macro.get("fed_funds_rate"))}% | USD/KRW: {_fmt(macro.get("exchange_rate_usdkrw"))}
+
+[종목 데이터 — {ticker}]
+현재가: ${price:,.2f} USD
+PER: {_fmt(financial.get("per"))} | PBR: {_fmt(financial.get("pbr"))} | ROE: {_fmt(financial.get("roe"))}{'%' if financial.get('roe') else ''}
+
+[최근 뉴스]
+{news_text}
+
+위 데이터를 분석하여 아래 JSON 형식으로만 응답하세요. 마크다운(```)을 사용하지 마세요.
+
+{{"score": 0.75, "signal": "BUY", "signal_reason": "매수 판단 근거 1~2문장", "summary": "종합 의견 2~3문장", "reasons": ["근거1", "근거2", "근거3"]}}
+
+score 0.0~1.0. signal 기준:
+- BUY: 지금 신규 매수 적합
+- HOLD: 보유 중이라면 유지
+- WATCH: 관망 (고평가 또는 모멘텀 약함)
+- SELL: 매도 고려
+
+[밸류에이션 필터]
+- PER 40배 초과: WATCH 또는 SELL 검토 (기술주는 50배까지 허용)
+- S&P500 -1% 이상 시: BUY 기준 강화
+
+모든 텍스트는 한국어로 작성하세요."""
+
+    try:
+        text = _generate(prompt)
+        text = re.sub(r"```(?:json)?\s*", "", text)
+        text = re.sub(r"```", "", text).strip()
+        s, e = text.find("{"), text.rfind("}")
+        if s != -1 and e > s:
+            text = text[s : e + 1]
+        return json.loads(text)
+    except Exception as ex:
+        print(f"[Gemini] analyze_us_stock {ticker} error: {type(ex).__name__}: {ex}", flush=True)
+        return {
+            "score": 0.5,
+            "signal": "HOLD",
+            "signal_reason": "AI 분석 중 오류가 발생했습니다.",
+            "summary": f"{ticker} 분석 중 오류가 발생했습니다.",
+            "reasons": ["데이터 수집 완료", "AI 분석 재시도 필요"],
+        }
+
+
 def recommend_stocks(user_profile: dict, macro: dict, candidates: list[dict]) -> dict:
     style = ", ".join(_STYLE_MAP.get(s, s) for s in user_profile.get("preferred_style", []))
     horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
