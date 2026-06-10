@@ -390,3 +390,72 @@ def get_shareholders(ticker: str) -> list[dict]:
         pass
 
     return []
+
+
+def get_earnings_info(ticker: str) -> dict:
+    """DART 최근 실적 보고서 제출 현황 및 다음 예상 제출 시기."""
+    if not settings.DART_API_KEY:
+        return {}
+    corp_code = _get_corp_code(ticker)
+    if not corp_code:
+        return {}
+
+    try:
+        today = datetime.date.today()
+        bgn = (today - datetime.timedelta(days=365)).strftime("%Y%m%d")
+        end = today.strftime("%Y%m%d")
+        r = requests.get(
+            "https://opendart.fss.or.kr/api/list.json",
+            params={
+                "crtfc_key": settings.DART_API_KEY,
+                "corp_code": corp_code,
+                "bgn_de": bgn,
+                "end_de": end,
+                "pblntf_ty": "A",   # 정기공시 (분기·반기·연간 보고서)
+                "page_count": 10,
+            },
+            timeout=10,
+        )
+        if not r.ok:
+            return {}
+        data = r.json()
+        if data.get("status") != "000":
+            return {}
+
+        items = data.get("list", [])
+        # 실적 보고서 코드만 필터
+        earnings = [
+            i for i in items
+            if i.get("report_nm") and any(
+                kw in i.get("report_nm", "")
+                for kw in ["사업보고서", "반기보고서", "분기보고서"]
+            )
+        ]
+        if not earnings:
+            return {}
+
+        latest = earnings[0]
+        rpt_name = latest.get("report_nm", "")
+        rpt_date = latest.get("rcept_dt", "")  # YYYYMMDD
+
+        # 다음 예상 제출 시기 추정
+        next_est = ""
+        if rpt_date:
+            try:
+                d = datetime.datetime.strptime(rpt_date, "%Y%m%d").date()
+                # 분기 기준 약 3개월 후
+                next_month = d.month + 3
+                next_year = d.year + next_month // 13
+                next_month = next_month % 12 or 12
+                next_est = f"{next_year}년 {next_month}월 예상"
+            except Exception:
+                pass
+
+        return {
+            "last_report": rpt_name,
+            "last_report_date": rpt_date,
+            "next_earnings_est": next_est,
+        }
+    except Exception as e:
+        print(f"[DART] {ticker} earnings_info error: {e}", flush=True)
+    return {}

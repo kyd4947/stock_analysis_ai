@@ -206,12 +206,12 @@ def get_naver_financials(ticker: str) -> dict:
 
 
 def get_price_history(ticker: str) -> dict:
-    """Yahoo Finance에서 60일 일별 종가 조회 및 이동평균·고저 계산."""
+    """Yahoo Finance에서 1년 일별 OHLCV 조회: 52주 고저·거래량 추세·이동평균·업종 대비 수익률."""
     for suffix in [".KS", ".KQ"]:
         try:
             r = requests.get(
                 f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}{suffix}",
-                params={"interval": "1d", "range": "3mo"},
+                params={"interval": "1d", "range": "1y"},
                 headers=_YAHOO_HEADERS,
                 timeout=10,
             )
@@ -221,32 +221,107 @@ def get_price_history(ticker: str) -> dict:
             if not result_list:
                 continue
             quotes = result_list[0].get("indicators", {}).get("quote", [{}])[0]
-            closes = quotes.get("close", [])
-            highs  = quotes.get("high",  [])
-            lows   = quotes.get("low",   [])
+            closes  = quotes.get("close",  [])
+            highs   = quotes.get("high",   [])
+            lows    = quotes.get("low",    [])
+            volumes = quotes.get("volume", [])
 
-            # None 제거
-            rows = [(c, h, l) for c, h, l in zip(closes, highs, lows) if c]
+            rows = [
+                (c, h, l, v)
+                for c, h, l, v in zip(closes, highs, lows, volumes)
+                if c
+            ]
             if len(rows) < 5:
                 continue
 
             cs = [r[0] for r in rows]
+            hs = [r[1] for r in rows]
+            ls = [r[2] for r in rows]
+            vs = [r[3] for r in rows if r[3] and r[3] > 0]
 
             def _ma(prices, n):
-                if len(prices) < n:
-                    return None
-                return round(sum(prices[-n:]) / n)
+                return round(sum(prices[-n:]) / n) if len(prices) >= n else None
+
+            # 52주 고저 위치
+            high_52w = round(max(hs))
+            low_52w  = round(min(ls))
+            curr = cs[-1]
+            if high_52w > low_52w:
+                position_52w = round((curr - low_52w) / (high_52w - low_52w) * 100, 1)
+            else:
+                position_52w = 50.0
+            pct_from_52w_high = round((curr - high_52w) / high_52w * 100, 1)
+
+            # 거래량 추세: 현재 거래량 vs 20일 평균
+            curr_vol = vs[-1] if vs else None
+            avg_vol_20 = round(sum(vs[-21:-1]) / 20) if len(vs) >= 21 else None
+            vol_ratio = round(curr_vol / avg_vol_20, 2) if avg_vol_20 and curr_vol else None
+
+            # 단기 수익률 (5일/20일) — 업종 상대 강도 계산용
+            ret_5d  = round((cs[-1] / cs[-6]  - 1) * 100, 2) if len(cs) >= 6  else None
+            ret_20d = round((cs[-1] / cs[-21] - 1) * 100, 2) if len(cs) >= 21 else None
 
             result = {
-                "high_60d": round(max(r[1] for r in rows)),
-                "low_60d":  round(min(r[2] for r in rows)),
+                "high_52w": high_52w,
+                "low_52w":  low_52w,
+                "position_52w": position_52w,
+                "pct_from_52w_high": pct_from_52w_high,
                 "ma5":  _ma(cs, 5),
                 "ma20": _ma(cs, 20),
                 "ma60": _ma(cs, 60),
+                "curr_vol": curr_vol,
+                "avg_vol_20d": avg_vol_20,
+                "vol_ratio_20d": vol_ratio,
+                "ret_5d":  ret_5d,
+                "ret_20d": ret_20d,
                 "recent_closes": [round(c) for c in cs[-10:]],
             }
             print(f"[Stock] {ticker} price history OK ({suffix}): {len(rows)}days", flush=True)
             return result
         except Exception as e:
             print(f"[Stock] {ticker} price_history {suffix} error: {e}", flush=True)
+    return {}
+
+
+def get_investor_trend(ticker: str) -> dict:
+    """NAVER Finance 투자자별 최근 5일 순매수 동향 (외국인·기관)."""
+    try:
+        r = requests.get(
+            f"https://m.stock.naver.com/api/stock/{ticker}/investor",
+            headers=_NAVER_HEADERS,
+            timeout=8,
+        )
+        if not r.ok:
+            print(f"[Stock] {ticker} investor fail: {r.status_code}", flush=True)
+            return {}
+        data = r.json()
+        print(f"[Stock] {ticker} investor raw: {str(data)[:300]}", flush=True)
+
+        items = data if isinstance(data, list) else data.get("itemList") or data.get("list") or []
+        if not items:
+            return {}
+
+        recent = items[:5]
+        foreign_net = 0
+        organ_net = 0
+        for item in recent:
+            def _net(key_candidates) -> float:
+                for k in key_candidates:
+                    v = item.get(k)
+                    if v is not None:
+                        try:
+                            return float(str(v).replace(",", ""))
+                        except Exception:
+                            pass
+                return 0.0
+
+            foreign_net += _net(["foreignNetBuyQuant", "foreigner_net", "foreignerNetBuy", "frgn_ntby_qty"])
+            organ_net   += _net(["organNetBuyQuant", "institution_net", "orgNetBuy", "orgn_ntby_qty"])
+
+        return {
+            "foreign_5d_net": round(foreign_net),
+            "institution_5d_net": round(organ_net),
+        }
+    except Exception as e:
+        print(f"[Stock] {ticker} investor error: {e}", flush=True)
     return {}

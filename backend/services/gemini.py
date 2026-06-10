@@ -68,6 +68,10 @@ def analyze_stock(
     news_articles: list[dict],
     price: float,
     us_news_articles: list[dict] | None = None,
+    price_history: dict | None = None,
+    investor_trend: dict | None = None,
+    earnings_info: dict | None = None,
+    shareholders: list[dict] | None = None,
 ) -> dict:
     style = ", ".join(_STYLE_MAP.get(s, s) for s in user_profile.get("preferred_style", []))
     horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
@@ -98,6 +102,55 @@ def analyze_stock(
 
     price_str = f"{price:,.0f}원" if price > 0 else "시세 미제공"
 
+    # 52주 고저 및 기술 지표
+    ph = price_history or {}
+    tech_parts = []
+    if ph.get("high_52w") and ph.get("low_52w"):
+        tech_parts.append(f"52주 고가 {ph['high_52w']:,}원 / 저가 {ph['low_52w']:,}원")
+    if ph.get("position_52w") is not None:
+        tech_parts.append(f"현재가 52주 범위 내 {ph['position_52w']}% 위치 (고점 대비 {ph.get('pct_from_52w_high', 0):+.1f}%)")
+    if ph.get("ma5") and ph.get("ma20"):
+        trend = "정배열(단기↑)" if ph["ma5"] >= ph["ma20"] else "역배열(단기↓)"
+        tech_parts.append(f"MA5 {ph['ma5']:,} / MA20 {ph['ma20']:,} → {trend}")
+    if ph.get("vol_ratio_20d") is not None:
+        vr = ph["vol_ratio_20d"]
+        vol_desc = "급증(20일평균 대비 {:.1f}배)".format(vr) if vr >= 2 else ("증가" if vr >= 1.3 else ("감소" if vr < 0.7 else "보통"))
+        tech_parts.append(f"거래량 {vol_desc}")
+    if ph.get("ret_5d") is not None and ph.get("ret_20d") is not None:
+        tech_parts.append(f"최근 수익률 5일 {ph['ret_5d']:+.1f}% / 20일 {ph['ret_20d']:+.1f}%")
+    tech_text = "\n".join(tech_parts) or "데이터 없음"
+
+    # KOSPI 대비 상대 강도
+    kospi_ret_5d = None
+    if macro.get("kospi") and ph.get("ret_5d") is not None:
+        kospi_chg = macro["kospi"].get("change_rate", 0)
+        diff = round(ph["ret_5d"] - kospi_chg, 2)
+        kospi_ret_5d = f"KOSPI 대비 5일 수익률 {diff:+.2f}%p ({'시장 아웃퍼폼' if diff > 0 else '시장 언더퍼폼'})"
+
+    # 외국인/기관 수급
+    it = investor_trend or {}
+    invest_parts = []
+    if it.get("foreign_5d_net") is not None:
+        v = it["foreign_5d_net"]
+        invest_parts.append(f"외국인 5일 순매수 {v:+,}주 ({'매수 우위' if v > 0 else '매도 우위'})")
+    if it.get("institution_5d_net") is not None:
+        v = it["institution_5d_net"]
+        invest_parts.append(f"기관 5일 순매수 {v:+,}주 ({'매수 우위' if v > 0 else '매도 우위'})")
+    invest_text = "\n".join(invest_parts) or "데이터 없음"
+
+    # 실적 일정
+    ei = earnings_info or {}
+    earn_text = "데이터 없음"
+    if ei.get("last_report"):
+        earn_text = f"최근 보고서: {ei['last_report']} ({ei.get('last_report_date', '')})"
+        if ei.get("next_earnings_est"):
+            earn_text += f" | 다음 예상: {ei['next_earnings_est']}"
+
+    # 주요 주주
+    sh_text = "데이터 없음"
+    if shareholders:
+        sh_text = ", ".join(f"{s['name']} {s['share']}주" for s in shareholders[:3] if s.get("name"))
+
     prompt = f"""당신은 한국 주식 투자 AI 애널리스트입니다. 아래 데이터를 종합하여 {ticker} 종목을 분석하세요.
 
 [투자자 프로필]
@@ -115,6 +168,19 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 [재무]
 현재가: {price_str} | PER: {_fmt_fin(financial.get("per"))} | PBR: {_fmt_fin(financial.get("pbr"))} | ROE: {_fmt_fin(financial.get("roe"))}{'%' if financial.get('roe') else ''}
 
+[기술 지표 및 수급]
+{tech_text}
+{f"업종 상대 강도: {kospi_ret_5d}" if kospi_ret_5d else ""}
+
+[외국인/기관 수급 동향]
+{invest_text}
+
+[실적 발표 일정]
+{earn_text}
+
+[주요 주주]
+{sh_text}
+
 [DART 공시 하이라이트]
 {highlights_text}
 
@@ -125,7 +191,7 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 {news_text}
 ※ 뉴스가 있으면 반드시 분석에 반영하고, reasons 중 하나에 뉴스 내용(호재/악재 여부)을 포함하세요.
 
-위 데이터를 분석하여 아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요. JSON 외 다른 텍스트를 포함하지 마세요.
+위 데이터를 종합 분석하여 아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요.
 
 {{"score": 0.75, "signal": "BUY", "signal_reason": "매수 판단 근거 1~2문장", "summary": "종합 의견 2~3문장", "reasons": ["근거1", "근거2", "근거3"]}}
 

@@ -24,9 +24,9 @@ def _cache_get(ticker: str) -> dict | None:
 def _cache_set(ticker: str, value: dict):
     _TICKER_CACHE[ticker] = (value, time.time())
 
-from backend.services.stock import get_stock_data, get_naver_financials
+from backend.services.stock import get_stock_data, get_naver_financials, get_price_history, get_investor_trend
 from backend.services.macro_service import get_macro_snapshot
-from backend.services.dart import get_dart_disclosures, get_shareholders, get_dart_financials, name_to_ticker
+from backend.services.dart import get_dart_disclosures, get_shareholders, get_dart_financials, get_earnings_info, name_to_ticker
 from backend.services.news import get_stock_news, get_us_market_news, get_us_stock_news
 from backend.services.us_stock import get_us_stock_data, get_us_stock_financials
 from backend.services import gemini as gemini_svc
@@ -176,12 +176,15 @@ async def _process_ticker(
 
     # 2단계: 회사명으로 뉴스 검색 + 나머지 병렬 수집
     company_name = stock.get("name") or ""
-    dart, shareholders, news_articles, dart_fin, naver_fin = await asyncio.gather(
+    dart, shareholders, news_articles, dart_fin, naver_fin, price_hist, investor_trend, earnings_info = await asyncio.gather(
         loop.run_in_executor(None, get_dart_disclosures, ticker),
         loop.run_in_executor(None, get_shareholders, ticker),
         loop.run_in_executor(None, get_stock_news, ticker, company_name),
         loop.run_in_executor(None, get_dart_financials, ticker),
         loop.run_in_executor(None, get_naver_financials, ticker),
+        loop.run_in_executor(None, get_price_history, ticker),
+        loop.run_in_executor(None, get_investor_trend, ticker),
+        loop.run_in_executor(None, get_earnings_info, ticker),
     )
 
     price = stock.get("price") or 0
@@ -240,6 +243,10 @@ async def _process_ticker(
             news_articles=news_articles,
             us_news_articles=us_news,
             price=stock.get("price") or 0,
+            price_history=price_hist,
+            investor_trend=investor_trend,
+            earnings_info=earnings_info,
+            shareholders=shareholders,
         ),
     )
 
