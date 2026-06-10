@@ -68,4 +68,25 @@ async def recommend(request: Request, req: RecommendRequest):
     result = await loop.run_in_executor(
         None, gemini_svc.recommend_stocks, req.user_profile, macro, candidates
     )
+
+    # Gemini가 잘못된 티커(할루시네이션, .KS 포함 등)를 반환하면 _CANDIDATES 기준으로 정규화
+    _name_map = {name.lower(): ticker for ticker, name, _ in _CANDIDATES}
+    _valid = {ticker for ticker, _, _ in _CANDIDATES}
+    for stock in result.get("stocks", []):
+        t = (stock.get("ticker") or "").strip()
+        if t not in _valid:
+            name_key = (stock.get("name") or "").strip().lower()
+            correct = _name_map.get(name_key)
+            if not correct:
+                # 부분 일치 (예: "SK하이닉스" ↔ "SK 하이닉스")
+                for cname, cticker in ((n.lower(), tk) for tk, n, _ in _CANDIDATES):
+                    if cname in name_key or name_key in cname:
+                        correct = cticker
+                        break
+            if correct:
+                print(f"[Recommend] ticker 정규화: {t!r} → {correct!r}", flush=True)
+                stock["ticker"] = correct
+            else:
+                print(f"[Recommend] 알 수 없는 ticker: {t!r} (name={stock.get('name')!r})", flush=True)
+
     return result

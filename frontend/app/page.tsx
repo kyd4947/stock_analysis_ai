@@ -553,6 +553,9 @@ export default function Page() {
                       <p className="text-sm leading-6 text-slate-200">{recommendation.message}</p>
                     </div>
 
+                    <p className="text-xs text-slate-400 italic">
+                      ※ 아래 시그널은 기초 재무 지표(PER·PBR·ROE) 기반 예비 추천입니다. 클릭하면 뉴스·기술 지표를 포함한 종합 AI 분석을 확인할 수 있습니다.
+                    </p>
                     <div className="space-y-2">
                       {recommendation.stocks.map((stock) => (
                         <button
@@ -569,19 +572,13 @@ export default function Page() {
                                 {stock.sector}
                               </span>
                             </div>
-                            <span
-                              className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                stock.signal === "BUY"
-                                  ? "bg-rose-50 text-rose-600"
-                                  : "bg-slate-100 text-slate-600"
-                              }`}
-                            >
-                              {stock.signal}
+                            <span className="shrink-0 rounded-full border border-rose-200 px-2.5 py-0.5 text-xs font-bold text-rose-600">
+                              {stock.signal} <span className="font-normal text-rose-400">(예비)</span>
                             </span>
                           </div>
                           <p className="mt-2 text-xs leading-5 text-slate-500">{stock.reason}</p>
                           <p className="mt-1.5 text-xs font-medium text-slate-400">
-                            상세 AI 분석 보기 →
+                            종합 AI 분석 보기 (뉴스·기술 지표 포함) →
                           </p>
                         </button>
                       ))}
