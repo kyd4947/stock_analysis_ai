@@ -17,7 +17,7 @@ export type StockScreenResult = {
   ticker: string;
   name?: string;
   score: number;
-  signal?: "BUY" | "SELL" | "HOLD";
+  signal?: "BUY" | "HOLD" | "WATCH" | "SELL";
   signal_reason?: string;
   summary: string;
   reasons: string[];
@@ -214,7 +214,7 @@ export type RecommendStock = {
   name: string;
   sector: string;
   reason: string;
-  signal: "BUY" | "HOLD";
+  signal: "BUY" | "HOLD" | "WATCH" | "SELL";
 };
 
 export type RecommendResult = {

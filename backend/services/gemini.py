@@ -128,7 +128,13 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 
 {{"score": 0.75, "signal": "BUY", "signal_reason": "매수 판단 근거 1~2문장", "summary": "종합 의견 2~3문장", "reasons": ["근거1", "근거2", "근거3"]}}
 
-score는 0.0~1.0 사이 실수, signal은 BUY/SELL/HOLD 중 하나, 모든 텍스트는 한국어로 작성하세요."""
+score는 0.0~1.0 사이 실수.
+signal 선택 기준:
+- BUY: 지금 신규 매수 적합
+- HOLD: 이미 보유 중이라면 유지 권장
+- WATCH: 아직 없다면 매수 보류, 상황 관망
+- SELL: 보유 중이라면 매도 고려
+모든 텍스트는 한국어로 작성하세요."""
 
     try:
         text = _generate(prompt)
@@ -167,7 +173,9 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 
 {{"message": "이 프로필에 어울리는 종목 추천 이유를 2~3문장으로 설명", "stocks": [{{"ticker": "005930", "name": "삼성전자", "sector": "반도체/AI", "reason": "이 종목을 추천하는 핵심 근거 1~2문장", "signal": "BUY"}}]}}
 
-ticker는 한국 주식 6자리 숫자 코드, signal은 BUY 또는 HOLD, 모든 텍스트는 한국어로 작성하세요."""
+ticker는 한국 주식 6자리 숫자 코드.
+signal: BUY(신규 매수 적합) / HOLD(보유 유지) / WATCH(관망 후 진입 검토) / SELL(매도 고려).
+모든 텍스트는 한국어로 작성하세요."""
 
     try:
         text = _generate(prompt)

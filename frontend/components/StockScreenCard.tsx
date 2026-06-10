@@ -115,9 +115,10 @@ function scoreMeta(score: number) {
 function SignalBadge({ signal, reason }: { signal?: string; reason?: string }) {
   if (!signal) return null;
   const meta = {
-    BUY:  { label: "매수", icon: TrendingUp,   bg: "bg-emerald-500", text: "text-white" },
-    SELL: { label: "매도", icon: TrendingDown,  bg: "bg-rose-500",    text: "text-white" },
-    HOLD: { label: "관망", icon: Info,           bg: "bg-slate-700",   text: "text-white" },
+    BUY:   { label: "매수",  icon: TrendingUp,   bg: "bg-emerald-500", text: "text-white" },
+    HOLD:  { label: "보유",  icon: Info,          bg: "bg-blue-500",    text: "text-white" },
+    WATCH: { label: "관망",  icon: Info,          bg: "bg-amber-500",   text: "text-white" },
+    SELL:  { label: "매도",  icon: TrendingDown,  bg: "bg-rose-500",    text: "text-white" },
   }[signal] ?? { label: signal, icon: Info, bg: "bg-slate-200", text: "text-slate-700" };
 
   const Icon = meta.icon;
