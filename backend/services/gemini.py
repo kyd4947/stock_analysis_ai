@@ -73,7 +73,7 @@ def analyze_stock(
     horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
     risk = _RISK_MAP.get(user_profile.get("risk_tolerance", "medium"), "중립적")
 
-    news_text = "\n".join(f"- {a['title']}" for a in news_articles[:3]) or "뉴스 없음"
+    news_text = "\n".join(f"- {a['title']}" for a in news_articles[:5]) or "뉴스 없음"
     risk_text = ", ".join(dart.get("risk_flags", [])) or "없음"
     highlights_text = "\n".join(f"- {h}" for h in dart.get("highlights", [])) or "없음"
 
@@ -123,6 +123,7 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 
 [종목 관련 최신 뉴스]
 {news_text}
+※ 뉴스가 있으면 반드시 분석에 반영하고, reasons 중 하나에 뉴스 내용(호재/악재 여부)을 포함하세요.
 
 위 데이터를 분석하여 아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요. JSON 외 다른 텍스트를 포함하지 마세요.
 

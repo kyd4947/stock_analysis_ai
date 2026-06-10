@@ -167,18 +167,22 @@ async def _process_ticker(
         print(f"[Screen/{ticker}] 캐시 히트", flush=True)
         return cached if cached["score"] >= min_score else None
 
-    stock, dart, shareholders, news_articles, dart_fin, naver_fin = await asyncio.gather(
-        loop.run_in_executor(None, get_stock_data, ticker),
-        loop.run_in_executor(None, get_dart_disclosures, ticker),
-        loop.run_in_executor(None, get_shareholders, ticker),
-        loop.run_in_executor(None, get_stock_news, ticker),
-        loop.run_in_executor(None, get_dart_financials, ticker),
-        loop.run_in_executor(None, get_naver_financials, ticker),
-    )
+    # 1단계: 주가 데이터 먼저 (회사명으로 뉴스 검색하기 위해)
+    stock = await loop.run_in_executor(None, get_stock_data, ticker)
 
     # 이름도 가격도 없으면 → 존재하지 않는 티커
     if not stock.get("price") and not stock.get("name"):
         return None
+
+    # 2단계: 회사명으로 뉴스 검색 + 나머지 병렬 수집
+    company_name = stock.get("name") or ""
+    dart, shareholders, news_articles, dart_fin, naver_fin = await asyncio.gather(
+        loop.run_in_executor(None, get_dart_disclosures, ticker),
+        loop.run_in_executor(None, get_shareholders, ticker),
+        loop.run_in_executor(None, get_stock_news, ticker, company_name),
+        loop.run_in_executor(None, get_dart_financials, ticker),
+        loop.run_in_executor(None, get_naver_financials, ticker),
+    )
 
     price = stock.get("price") or 0
     per = stock.get("per")
