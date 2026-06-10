@@ -214,6 +214,54 @@ def _ecos_cpi_yoy() -> float | None:
     return None
 
 
+def _get_vkospi() -> dict | None:
+    """VKOSPI(코스피 변동성 지수) — NAVER Finance 우선, Yahoo Finance fallback."""
+    # 1차: NAVER Finance /api/index/VKOSPI/basic
+    try:
+        r = requests.get(
+            "https://m.stock.naver.com/api/index/VKOSPI/basic",
+            headers=_NAVER_HEADERS,
+            timeout=8,
+        )
+        if r.ok:
+            data = r.json()
+            # NAVER는 closePrice / indexLevel / nIndexVal 등 여러 필드 사용
+            raw = (
+                data.get("closePrice")
+                or data.get("nIndexVal")
+                or data.get("indexLevel")
+                or data.get("currentIndex")
+            )
+            price_str = str(raw or "").replace(",", "")
+            price = float(price_str) if price_str else None
+            if price:
+                change_str = str(
+                    data.get("compareToPreviousClosePrice")
+                    or data.get("priceChangeValue")
+                    or "0"
+                ).replace(",", "")
+                change_val = float(change_str) if change_str else 0.0
+                change_rate_str = str(data.get("fluctuationsRatio") or data.get("priceChangeRate") or "0")
+                change_rate = float(change_rate_str) if change_rate_str else 0.0
+                print(f"[Macro] VKOSPI NAVER OK: {price} ({change_rate:+.2f}%)", flush=True)
+                return {
+                    "price": round(price, 2),
+                    "change_val": round(change_val, 2),
+                    "change_rate": round(change_rate, 2),
+                    "positive": change_val >= 0,
+                }
+    except Exception as e:
+        print(f"[Macro] VKOSPI NAVER error: {e}", flush=True)
+
+    # 2차: Yahoo Finance ^VKOSPI
+    result = _yahoo_us_index("^VKOSPI", "VKOSPI")
+    if result:
+        return result
+
+    # 3차: Yahoo Finance ^VKOSPI200 (KOSPI200 변동성)
+    return _yahoo_us_index("^VKOSPI200", "VKOSPI200")
+
+
 def _yahoo_us_index(symbol: str, label: str) -> dict | None:
     """Yahoo Finance에서 미국 지수(S&P500/Nasdaq/Dow) 전일 종가 및 등락률 조회."""
     for base in ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"]:
@@ -428,10 +476,7 @@ def get_macro_snapshot() -> dict:
     if vix:
         result["vix"] = vix
 
-    vkospi = _yahoo_us_index("^VKOSPI", "VKOSPI")
-    if not vkospi:
-        # NAVER Finance fallback
-        vkospi = _naver_index("VKOSPI")
+    vkospi = _get_vkospi()
     if vkospi:
         result["vkospi"] = vkospi
 

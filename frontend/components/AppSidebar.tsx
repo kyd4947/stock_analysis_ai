@@ -144,8 +144,8 @@ function MacroPanel({
           <>
             <div className="my-1 border-t border-slate-100" />
             {[
-              macro?.vkospi ? { label: "VKOSPI", value: macro.vkospi.price, change: macro.vkospi.change_rate } : null,
-              macro?.vix   ? { label: "VIX",     value: macro.vix.price,    change: macro.vix.change_rate }    : null,
+              macro?.vkospi ? { label: "한국 공포지수", value: macro.vkospi.price, change: macro.vkospi.change_rate } : null,
+              macro?.vix   ? { label: "미국 공포지수", value: macro.vix.price,    change: macro.vix.change_rate }    : null,
             ]
               .filter(Boolean)
               .map((item) => {
