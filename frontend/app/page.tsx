@@ -375,12 +375,22 @@ export default function Page() {
 
         {/* ── 분석 에러 ── */}
         {!screenLoading && screenError && (
-          <div className="flex items-center gap-4 rounded-lg border border-rose-100 bg-rose-50 p-5 shadow-sm">
-            <XCircle className="h-6 w-6 shrink-0 text-rose-500" />
-            <div>
+          <div className="flex items-start gap-4 rounded-lg border border-rose-100 bg-rose-50 p-5 shadow-sm">
+            <XCircle className="mt-0.5 h-6 w-6 shrink-0 text-rose-500" />
+            <div className="flex-1">
               <p className="font-semibold text-rose-700">분석 오류</p>
               <p className="mt-1 text-sm text-rose-600">{screenError}</p>
             </div>
+            {lastTicker && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-rose-200 text-rose-700 hover:bg-rose-100"
+                onClick={() => handleTickerSearch?.(lastTicker)}
+              >
+                다시 시도
+              </Button>
+            )}
           </div>
         )}
 

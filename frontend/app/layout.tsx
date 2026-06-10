@@ -1,10 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import type { NavItem } from "@/components/AppSidebar";
 import { fetchMacro, screenStocks } from "@/lib/api";
 import type { MacroSnapshot, ScreenResponse } from "@/lib/api";
+import { verifyToken, clearToken } from "@/lib/auth";
+import type { AuthUser } from "@/lib/auth";
+import { AuthGate } from "@/components/AuthGate";
 import "./globals.css";
 
 export type UserProfileType = {
@@ -53,6 +56,7 @@ export function useSearchContext() {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const [authUser, setAuthUser] = useState<AuthUser | null | "loading">("loading");
   const [collapsed, setCollapsed] = useState(false);
   const [activeNav, setActiveNavState] = useState<NavItem>("analysis");
   const [searchLoading, setSearchLoading] = useState(false);
@@ -66,19 +70,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const [userProfile, setUserProfileState] = useState<UserProfileType>(DEFAULT_USER_PROFILE);
 
+  // 인증 상태 확인
   useEffect(() => {
+    verifyToken().then((user) => setAuthUser(user));
+  }, []);
+
+  useEffect(() => {
+    if (!authUser || authUser === "loading") return;
     const stored = localStorage.getItem("user_profile");
     if (stored) {
-      try {
-        setUserProfileState(JSON.parse(stored));
-      } catch {}
+      try { setUserProfileState(JSON.parse(stored)); } catch {}
     }
     const savedNav = localStorage.getItem("active_nav") as NavItem | null;
     const validNavs: NavItem[] = ["analysis", "watchlist", "portfolio", "profile"];
     if (savedNav && validNavs.includes(savedNav)) {
       setActiveNavState(savedNav);
     }
-  }, []);
+  }, [authUser]);
 
   function setActiveNav(nav: NavItem) {
     setActiveNavState(nav);
@@ -128,8 +136,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         setScreenError("종목 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해주세요. (데이터 서버 일시 오류)");
         setScreenResult(null);
       } else {
+        sessionStorage.setItem("lastSearchTicker", ticker);
         setScreenResult(result);
-        // 결과가 오면 헤더를 숫자 코드 대신 종목명으로 업데이트
         if (result.results[0].name) {
           setLastTicker(result.results[0].name);
         }
@@ -159,6 +167,55 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     setScreenResult(null);
     setScreenError(null);
     setLastTicker("");
+    sessionStorage.removeItem("lastSearchTicker");
+  }
+
+  // 새로고침 복원: 마지막 검색 종목 자동 재조회 (로그인 후에만)
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (!authUser || authUser === "loading") return;
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    const saved = sessionStorage.getItem("lastSearchTicker");
+    if (saved) handleTickerSearch(saved);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser]);
+
+  // 인증 로딩 중
+  if (authUser === "loading") {
+    return (
+      <html lang="ko" className="h-full">
+        <body className="flex h-full items-center justify-center bg-slate-100">
+          <div className="flex flex-col items-center gap-3 text-slate-400">
+            <svg className="h-8 w-8 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            <span className="text-sm font-medium">로딩 중...</span>
+          </div>
+        </body>
+      </html>
+    );
+  }
+
+  // 미인증 → 로그인/회원가입 화면
+  if (!authUser) {
+    return (
+      <html lang="ko" className="h-full">
+        <body className="h-full bg-slate-100 text-slate-950 antialiased">
+          <AuthGate onSuccess={(user) => setAuthUser(user)} />
+        </body>
+      </html>
+    );
+  }
+
+  function handleLogout() {
+    clearToken();
+    sessionStorage.removeItem("lastSearchTicker");
+    setAuthUser(null);
+    setScreenResult(null);
+    setScreenError(null);
+    setLastTicker("");
   }
 
   return (
@@ -175,6 +232,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             searchLoading={searchLoading}
             macro={macro}
             macroLoading={macroLoading}
+            authUser={authUser}
+            onLogout={handleLogout}
           />
           <SearchContext.Provider
             value={{
