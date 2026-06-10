@@ -1,13 +1,18 @@
 """
 거시경제 데이터 수집:
 - KOSPI/KOSDAQ/USD-KRW: NAVER Finance 실시간
-- 한국 기준금리 / CPI: ECOS API
-- 미국 기준금리 / 10Y 수익률: FRED API
+- 한국 기준금리 / CPI: ECOS API  (하루 1회 캐시)
+- 미국 기준금리 / 10Y 수익률: FRED API  (하루 1회 캐시)
 """
 import datetime
 import requests
 
 from backend.core.config import settings
+
+# 금리·CPI·고용 등 저빈도 변동 데이터 — 24시간 캐시
+_SLOW_CACHE: dict | None = None
+_SLOW_CACHE_TIME: datetime.datetime | None = None
+_SLOW_TTL_SECONDS = 86_400  # 24 hours
 
 _NAVER_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -517,9 +522,58 @@ def _kr_unemployment() -> dict | None:
     return None
 
 
+def _get_slow_data() -> dict:
+    """금리·CPI·고용 등 저빈도 변동 데이터를 24시간 캐시로 반환."""
+    global _SLOW_CACHE, _SLOW_CACHE_TIME
+
+    now = datetime.datetime.now()
+    if (
+        _SLOW_CACHE is not None
+        and _SLOW_CACHE_TIME is not None
+        and (now - _SLOW_CACHE_TIME).total_seconds() < _SLOW_TTL_SECONDS
+    ):
+        print("[Macro] slow data cache hit", flush=True)
+        return _SLOW_CACHE
+
+    slow: dict = {}
+
+    policy_rate = _ecos_policy_rate()
+    if policy_rate is not None:
+        slow["policy_rate"] = policy_rate
+
+    inflation_yoy = _ecos_cpi_yoy()
+    if inflation_yoy is not None:
+        slow["inflation_yoy"] = inflation_yoy
+
+    fed_funds = _fred_series("FEDFUNDS")
+    if fed_funds is not None:
+        slow["fed_funds_rate"] = fed_funds
+
+    us_10y = _fred_series("DGS10")
+    if us_10y is not None:
+        slow["us_10y_yield"] = us_10y
+
+    employment: dict = {}
+    us_emp = _us_employment()
+    employment.update(us_emp)
+    kr_unemp = _kr_unemployment()
+    if kr_unemp:
+        employment["kr_unemployment"] = kr_unemp
+    if employment:
+        slow["employment"] = employment
+
+    if slow:
+        _SLOW_CACHE = slow
+        _SLOW_CACHE_TIME = now
+        print(f"[Macro] slow data cached at {now.strftime('%H:%M:%S')} (next refresh in 24h)", flush=True)
+
+    return _SLOW_CACHE or slow
+
+
 def get_macro_snapshot() -> dict:
     result: dict = {}
 
+    # 실시간 데이터: 매 호출마다 갱신
     kospi = _naver_index("KOSPI")
     if kospi:
         result["kospi"] = kospi
@@ -532,22 +586,6 @@ def get_macro_snapshot() -> dict:
     if usd_krw:
         result["usd_krw"] = usd_krw
         result["exchange_rate_usdkrw"] = usd_krw["price"]
-
-    policy_rate = _ecos_policy_rate()
-    if policy_rate is not None:
-        result["policy_rate"] = policy_rate
-
-    inflation_yoy = _ecos_cpi_yoy()
-    if inflation_yoy is not None:
-        result["inflation_yoy"] = inflation_yoy
-
-    fed_funds = _fred_series("FEDFUNDS")
-    if fed_funds is not None:
-        result["fed_funds_rate"] = fed_funds
-
-    us_10y = _fred_series("DGS10")
-    if us_10y is not None:
-        result["us_10y_yield"] = us_10y
 
     sp500 = _yahoo_us_index("^GSPC", "S&P500")
     if sp500:
@@ -569,13 +607,7 @@ def get_macro_snapshot() -> dict:
     if vkospi:
         result["vkospi"] = vkospi
 
-    employment: dict = {}
-    us_emp = _us_employment()
-    employment.update(us_emp)
-    kr_unemp = _kr_unemployment()
-    if kr_unemp:
-        employment["kr_unemployment"] = kr_unemp
-    if employment:
-        result["employment"] = employment
+    # 저빈도 데이터: 24시간 캐시 (금리·CPI·고용)
+    result.update(_get_slow_data())
 
     return result
