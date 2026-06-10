@@ -52,6 +52,18 @@ export type StockScreenResult = {
     name: string;
     share: string;
   }>;
+  price_history?: {
+    high_52w?: number;
+    low_52w?: number;
+    position_52w?: number;
+    pct_from_52w_high?: number;
+    ma5?: number;
+    ma20?: number;
+    ma60?: number;
+    ret_5d?: number;
+    ret_20d?: number;
+    recent_closes?: number[];
+  };
 };
 
 export type ScreenResponse = {

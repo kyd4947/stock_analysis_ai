@@ -166,13 +166,26 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
     .map((a, idx) => `뉴스${idx + 1}: ${a.title} [출처: ${a.source}] [URL: ${a.url}]`)
     .join(" || ");
 
+  const ph = item.price_history;
   const contextSummary = [
     `종목: ${item.ticker}`,
     item.price ? `현재가: ${item.price.toLocaleString("ko-KR")}원` : null,
-    item.change_rate !== undefined ? `변동: ${item.change_rate}%` : null,
+    item.change_rate !== undefined ? `당일변동: ${item.change_rate}%` : null,
     `AI 점수: ${scorePercent}점 (${score.label})`,
     item.sector ? `섹터: ${item.sector}` : null,
     `PER: ${item.financial.per ?? "-"}, PBR: ${item.financial.pbr ?? "-"}, ROE: ${item.financial.roe ?? "-"}%`,
+    ph?.recent_closes?.length
+      ? `최근10일종가(오래된순): ${ph.recent_closes.map((v) => v.toLocaleString("ko-KR")).join(", ")}원`
+      : null,
+    ph?.ma5 && ph?.ma20
+      ? `MA5: ${ph.ma5.toLocaleString("ko-KR")}, MA20: ${ph.ma20.toLocaleString("ko-KR")}${ph.ma60 ? `, MA60: ${ph.ma60.toLocaleString("ko-KR")}` : ""}`
+      : null,
+    ph?.ret_5d !== undefined && ph?.ret_20d !== undefined
+      ? `최근수익률 5일: ${ph.ret_5d}%, 20일: ${ph.ret_20d}%`
+      : null,
+    ph?.pct_from_52w_high !== undefined
+      ? `52주고점대비: ${ph.pct_from_52w_high}%`
+      : null,
     `AI 요약: ${item.summary}`,
     item.dart.risk_flags.length > 0
       ? `리스크 공시: ${item.dart.risk_flags.join(", ")}`

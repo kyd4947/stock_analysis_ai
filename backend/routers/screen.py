@@ -277,6 +277,7 @@ async def _process_ticker(
         "dart": dart,
         "news": {"articles": news_articles} if news_articles else None,
         "shareholders": shareholders or None,
+        "price_history": price_hist or None,
     }
     _cache_set(ticker, result)
     return result
