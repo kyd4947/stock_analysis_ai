@@ -215,29 +215,9 @@ def _ecos_cpi_yoy() -> float | None:
 
 
 def _get_vkospi() -> dict | None:
-    """VKOSPI(코스피 변동성 지수) — yfinance 우선, NAVER Finance fallback."""
+    """VKOSPI(코스피 변동성 지수) — NAVER Finance 전용 (Yahoo Finance에 ^VKOSPI 없음)."""
 
-    # 1차: yfinance ^VKOSPI (가장 신뢰성 높음)
-    try:
-        import yfinance as yf
-        t = yf.Ticker("^VKOSPI")
-        hist = t.history(period="5d")
-        if not hist.empty:
-            price = float(hist["Close"].iloc[-1])
-            prev  = float(hist["Close"].iloc[-2]) if len(hist) > 1 else price
-            change_val  = round(price - prev, 2)
-            change_rate = round(change_val / prev * 100, 2) if prev else 0.0
-            print(f"[Macro] VKOSPI yf OK: {price} ({change_rate:+.2f}%)", flush=True)
-            return {
-                "price": round(price, 2),
-                "change_val": change_val,
-                "change_rate": change_rate,
-                "positive": change_val >= 0,
-            }
-    except Exception as e:
-        print(f"[Macro] VKOSPI yf error: {e}", flush=True)
-
-    # 2차: NAVER Finance /api/index/VKOSPI/basic
+    # 1차: NAVER Finance /api/index/VKOSPI/basic
     try:
         r = requests.get(
             "https://m.stock.naver.com/api/index/VKOSPI/basic",
@@ -246,36 +226,113 @@ def _get_vkospi() -> dict | None:
         )
         if r.ok:
             data = r.json()
+            print(f"[Macro] VKOSPI basic raw: {data}", flush=True)
             raw = (
-                data.get("closePrice")
-                or data.get("nIndexVal")
-                or data.get("indexLevel")
-                or data.get("currentIndex")
+                data.get("closePrice") or data.get("nIndexVal") or
+                data.get("indexLevel") or data.get("currentIndex") or
+                data.get("price") or data.get("marketPrice")
             )
-            price_str = str(raw or "").replace(",", "")
+            price_str = str(raw or "").replace(",", "").strip()
             price = float(price_str) if price_str else None
             if price:
                 change_str = str(
-                    data.get("compareToPreviousClosePrice")
-                    or data.get("priceChangeValue") or "0"
+                    data.get("compareToPreviousClosePrice") or
+                    data.get("priceChangeValue") or data.get("change") or "0"
                 ).replace(",", "")
                 change_val = float(change_str) if change_str else 0.0
                 change_rate_str = str(
-                    data.get("fluctuationsRatio") or data.get("priceChangeRate") or "0"
+                    data.get("fluctuationsRatio") or data.get("priceChangeRate") or
+                    data.get("changeRate") or "0"
                 )
                 change_rate = float(change_rate_str) if change_rate_str else 0.0
-                print(f"[Macro] VKOSPI NAVER OK: {price} ({change_rate:+.2f}%)", flush=True)
+                print(f"[Macro] VKOSPI basic OK: {price} ({change_rate:+.2f}%)", flush=True)
                 return {
                     "price": round(price, 2),
                     "change_val": round(change_val, 2),
                     "change_rate": round(change_rate, 2),
                     "positive": change_val >= 0,
                 }
+        else:
+            print(f"[Macro] VKOSPI basic fail: {r.status_code}", flush=True)
     except Exception as e:
-        print(f"[Macro] VKOSPI NAVER error: {e}", flush=True)
+        print(f"[Macro] VKOSPI basic error: {e}", flush=True)
 
-    # 3차: Yahoo Finance raw HTTP ^VKOSPI
-    return _yahoo_us_index("^VKOSPI", "VKOSPI")
+    # 2차: NAVER Finance 차트 API (일봉)
+    try:
+        now = datetime.datetime.now()
+        start = (now - datetime.timedelta(days=10)).strftime("%Y%m%d000000")
+        end = now.strftime("%Y%m%d235959")
+        r = requests.get(
+            "https://m.stock.naver.com/api/chart/domestic/index/VKOSPI/day",
+            params={"startDateTime": start, "endDateTime": end},
+            headers=_NAVER_HEADERS,
+            timeout=8,
+        )
+        if r.ok:
+            items = r.json()
+            if items and isinstance(items, list):
+                last = items[-1]
+                prev_item = items[-2] if len(items) >= 2 else None
+                print(f"[Macro] VKOSPI chart item: {last}", flush=True)
+                price = float(
+                    last.get("closePrice") or last.get("close") or
+                    last.get("price") or last.get("indexLevel") or 0
+                )
+                if price:
+                    prev_price = price
+                    if prev_item:
+                        prev_price = float(
+                            prev_item.get("closePrice") or prev_item.get("close") or
+                            prev_item.get("price") or prev_item.get("indexLevel") or price
+                        )
+                    change_val = round(price - prev_price, 2)
+                    change_rate = round(change_val / prev_price * 100, 2) if prev_price else 0.0
+                    print(f"[Macro] VKOSPI chart OK: {price} ({change_rate:+.2f}%)", flush=True)
+                    return {
+                        "price": round(price, 2),
+                        "change_val": change_val,
+                        "change_rate": change_rate,
+                        "positive": change_val >= 0,
+                    }
+        else:
+            print(f"[Macro] VKOSPI chart fail: {r.status_code} {r.text[:80]}", flush=True)
+    except Exception as e:
+        print(f"[Macro] VKOSPI chart error: {e}", flush=True)
+
+    # 3차: NAVER Finance fchart (구형 XML API)
+    try:
+        import re as _re
+        r = requests.get(
+            "https://fchart.stock.naver.com/sise.nhn",
+            params={"requestType": "0", "symbol": "VKOSPI", "timeframe": "day", "count": "3"},
+            headers=_NAVER_HEADERS,
+            timeout=8,
+        )
+        if r.ok and r.text.strip():
+            print(f"[Macro] VKOSPI fchart raw: {r.text[:200]}", flush=True)
+            matches = _re.findall(r'data="([^"]+)"', r.text)
+            rows = [m.split("|") for m in matches if len(m.split("|")) >= 5]
+            if rows:
+                last_row = rows[-1]
+                prev_row = rows[-2] if len(rows) >= 2 else None
+                price = float(last_row[4])
+                if price:
+                    prev_price = float(prev_row[4]) if prev_row else price
+                    change_val = round(price - prev_price, 2)
+                    change_rate = round(change_val / prev_price * 100, 2) if prev_price else 0.0
+                    print(f"[Macro] VKOSPI fchart OK: {price} ({change_rate:+.2f}%)", flush=True)
+                    return {
+                        "price": round(price, 2),
+                        "change_val": change_val,
+                        "change_rate": change_rate,
+                        "positive": change_val >= 0,
+                    }
+        else:
+            print(f"[Macro] VKOSPI fchart fail: {r.status_code}", flush=True)
+    except Exception as e:
+        print(f"[Macro] VKOSPI fchart error: {e}", flush=True)
+
+    return None
 
 
 def _yahoo_us_index(symbol: str, label: str) -> dict | None:
