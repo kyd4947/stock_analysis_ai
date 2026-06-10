@@ -3,6 +3,7 @@ NAVER Finance 모바일 API를 이용한 한국 주식 실시간 데이터 수�
 전 종목(KOSPI/KOSDAQ) 지원, API 키 불필요, 실시간 가격.
 재무지표(PER/PBR/ROE)는 totalInfos에서 가져오며, DART에서 EPS/BPS로 계산한 값으로 보완.
 """
+import time
 import requests
 
 
@@ -46,12 +47,23 @@ def get_stock_data(ticker: str) -> dict:
     }
 
     try:
-        r = requests.get(
-            f"https://m.stock.naver.com/api/stock/{ticker}/basic",
-            headers=_NAVER_HEADERS,
-            timeout=8,
-        )
-        if not r.ok:
+        r = None
+        for attempt in range(3):
+            try:
+                r = requests.get(
+                    f"https://m.stock.naver.com/api/stock/{ticker}/basic",
+                    headers=_NAVER_HEADERS,
+                    timeout=8,
+                )
+                if r.ok:
+                    break
+                print(f"[Stock] {ticker} attempt {attempt+1} failed: HTTP {r.status_code}", flush=True)
+            except requests.Timeout:
+                print(f"[Stock] {ticker} attempt {attempt+1} timeout", flush=True)
+            if attempt < 2:
+                time.sleep(1)
+
+        if r is None or not r.ok:
             return result
         data = r.json()
 

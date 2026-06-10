@@ -125,7 +125,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         },
       });
       if (result.results.length === 0) {
-        setScreenError("이 종목의 데이터를 가져올 수 없습니다. 상장폐지된 종목이거나 현재 지원하지 않는 종목일 수 있습니다.");
+        setScreenError("종목 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해주세요. (데이터 서버 일시 오류)");
         setScreenResult(null);
       } else {
         setScreenResult(result);
