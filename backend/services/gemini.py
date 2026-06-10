@@ -324,9 +324,9 @@ JSON만 응답. 마크다운 금지.
         return {"error": "응답 파싱 중 오류가 발생했습니다."}
 
 
-def answer_question(ticker: str, question: str, context_summary: str = "") -> str:
+def _qa_prompt(ticker: str, question: str, context_summary: str) -> str:
     ctx = f"\n\n[분석 컨텍스트 — 이 데이터만 근거로 사용]\n{context_summary}" if context_summary else ""
-    prompt = f"""당신은 한국 주식 투자 분석 AI입니다.{ctx}
+    return f"""당신은 한국 주식 투자 분석 AI입니다.{ctx}
 
 [엄격한 답변 규칙]
 1. 위 [분석 컨텍스트]에 있는 데이터만 근거로 사용하세요.
@@ -340,7 +340,29 @@ def answer_question(ticker: str, question: str, context_summary: str = "") -> st
 
 질문: {question}"""
 
+
+def answer_question(ticker: str, question: str, context_summary: str = "") -> str:
+    prompt = _qa_prompt(ticker, question, context_summary)
     try:
         return _generate(prompt)
     except Exception:
         return "답변을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+
+
+def answer_question_stream(ticker: str, question: str, context_summary: str = ""):
+    """Gemini 스트리밍 버전. 텍스트 청크를 yield."""
+    prompt = _qa_prompt(ticker, question, context_summary)
+    if not settings.GEMINI_API_KEY:
+        yield "GEMINI_API_KEY가 설정되지 않았습니다."
+        return
+    client = _client()
+    for model in _MODELS:
+        try:
+            for chunk in client.models.generate_content_stream(model=model, contents=prompt):
+                if chunk.text:
+                    yield chunk.text
+            return
+        except Exception as e:
+            print(f"[Gemini stream] {model} failed: {type(e).__name__}: {e}", flush=True)
+            continue
+    yield "답변을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."

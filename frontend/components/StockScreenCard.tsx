@@ -34,7 +34,7 @@ type StockScreenCardProps = {
   onSelect?: () => void;
 };
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type ChatMessage = { role: "user" | "assistant"; content: string; streaming?: boolean };
 
 function renderInline(text: string): React.ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/);
@@ -202,20 +202,73 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
     const q = chatInput.trim();
     if (!q || chatLoading) return;
 
-    const userMsg: ChatMessage = { role: "user", content: q };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { role: "user", content: q }]);
     setChatInput("");
     setChatLoading(true);
 
+    // 스트리밍용 빈 assistant 메시지 미리 추가
+    setMessages((prev) => [...prev, { role: "assistant", content: "", streaming: true }]);
+
     try {
-      const answer = await askStockQuestion(item.ticker, q, contextSummary);
-      setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+      const res = await fetch(`${API_BASE}/api/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({ ticker: item.ticker, question: q, context_summary: contextSummary }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("스트림 연결 실패");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") break;
+          try {
+            const { chunk } = JSON.parse(data);
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === "assistant" && last.streaming) {
+                updated[updated.length - 1] = { ...last, content: last.content + chunk };
+              }
+              return updated;
+            });
+          } catch {}
+        }
+      }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "죄송합니다. 답변 생성에 실패했습니다. 잠시 후 다시 시도해주세요." },
-      ]);
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last?.role === "assistant") {
+          updated[updated.length - 1] = {
+            ...last,
+            content: "죄송합니다. 답변 생성에 실패했습니다. 잠시 후 다시 시도해주세요.",
+            streaming: false,
+          };
+        }
+        return updated;
+      });
     } finally {
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last?.role === "assistant" && last.streaming) {
+          updated[updated.length - 1] = { ...last, streaming: false };
+        }
+        return updated;
+      });
       setChatLoading(false);
     }
   }
@@ -617,6 +670,11 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                   >
                     {msg.role === "user" ? (
                       msg.content
+                    ) : msg.streaming ? (
+                      <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                        {msg.content || <span className="text-slate-400">...</span>}
+                        <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-slate-400 align-middle" />
+                      </p>
                     ) : (
                       <>
                         <MarkdownMessage content={msg.content} />
@@ -628,7 +686,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                   </div>
                 </div>
               ))}
-              {chatLoading && (
+              {chatLoading && !messages.some((m) => m.streaming) && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-400">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

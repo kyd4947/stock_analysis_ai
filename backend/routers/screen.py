@@ -1,10 +1,28 @@
 import re
+import time
 import uuid
 import asyncio
-from typing import Optional
+from typing import Any, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from backend.core.limiter import limiter
+
+# 30분 TTL 인메모리 캐시 (ticker → (result, timestamp))
+_TICKER_CACHE: dict[str, tuple[Any, float]] = {}
+_CACHE_TTL = 1800
+
+
+def _cache_get(ticker: str) -> dict | None:
+    entry = _TICKER_CACHE.get(ticker)
+    if entry and time.time() - entry[1] < _CACHE_TTL:
+        return entry[0]
+    if entry:
+        del _TICKER_CACHE[ticker]
+    return None
+
+
+def _cache_set(ticker: str, value: dict):
+    _TICKER_CACHE[ticker] = (value, time.time())
 
 from backend.services.stock import get_stock_data, get_naver_financials
 from backend.services.macro_service import get_macro_snapshot
@@ -64,6 +82,12 @@ async def _process_ticker(
     us_news: list[dict],
 ) -> dict | None:
     ticker = _resolve_ticker(ticker)
+
+    cached = _cache_get(ticker)
+    if cached:
+        print(f"[Screen/{ticker}] 캐시 히트", flush=True)
+        return cached if cached["score"] >= min_score else None
+
     stock, dart, shareholders, news_articles, dart_fin, naver_fin = await asyncio.gather(
         loop.run_in_executor(None, get_stock_data, ticker),
         loop.run_in_executor(None, get_dart_disclosures, ticker),
@@ -140,7 +164,7 @@ async def _process_ticker(
     if score < min_score:
         return None
 
-    return {
+    result = {
         "ticker": ticker,
         "name": stock.get("name") or ticker,
         "score": score,
@@ -164,6 +188,8 @@ async def _process_ticker(
         "news": {"articles": news_articles} if news_articles else None,
         "shareholders": shareholders or None,
     }
+    _cache_set(ticker, result)
+    return result
 
 
 @router.post("/screen")
