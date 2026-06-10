@@ -156,25 +156,55 @@ signal 선택 기준:
         }
 
 
-def recommend_stocks(user_profile: dict, macro: dict) -> dict:
+def recommend_stocks(user_profile: dict, macro: dict, candidates: list[dict]) -> dict:
     style = ", ".join(_STYLE_MAP.get(s, s) for s in user_profile.get("preferred_style", []))
     horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
     risk = _RISK_MAP.get(user_profile.get("risk_tolerance", "medium"), "중립적")
 
-    prompt = f"""당신은 한국 주식 투자 전문 AI 애널리스트입니다. 아래 투자자 프로필과 현재 시장 지표를 바탕으로 지금 당장 매수를 고려할 만한 한국 상장 주식 3~5종목을 구체적으로 추천하세요.
+    def _f(v, suffix=""):
+        return f"{v}{suffix}" if v is not None else "N/A"
+
+    rows = []
+    for c in candidates:
+        rows.append(
+            f"- {c['name']}({c['ticker']}) [{c['sector']}]"
+            f" 현재가:{_f(c.get('price') and f\"{c['price']:,}원\")}"
+            f" PER:{_f(c.get('per'), '배')}"
+            f" PBR:{_f(c.get('pbr'), '배')}"
+            f" ROE:{_f(c.get('roe'), '%')}"
+        )
+    candidates_text = "\n".join(rows)
+
+    us_parts = []
+    if macro.get("sp500"):
+        us_parts.append(f"S&P500 {macro['sp500']['change_rate']:+.2f}%")
+    if macro.get("nasdaq"):
+        us_parts.append(f"나스닥 {macro['nasdaq']['change_rate']:+.2f}%")
+    us_str = " | ".join(us_parts) if us_parts else "N/A"
+
+    prompt = f"""당신은 한국 주식 투자 전문 AI 애널리스트입니다.
+아래 후보 종목의 실시간 재무 데이터를 보고, 투자자 프로필에 가장 잘 맞는 3~5종목을 골라 추천하세요.
 
 [투자자 프로필]
 리스크 허용도: {risk} | 투자 스타일: {style or "설정 없음"} | 투자 기간: {horizon}
 
 [현재 시장 지표]
 USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macro.get("policy_rate", "N/A")}% | 미국 기준금리: {macro.get("fed_funds_rate", "N/A")}%
+전날 미국 증시: {us_str}
 
-아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요. JSON 외 다른 텍스트를 포함하지 마세요.
+[후보 종목 실시간 재무 데이터]
+{candidates_text}
 
-{{"message": "이 프로필에 어울리는 종목 추천 이유를 2~3문장으로 설명", "stocks": [{{"ticker": "005930", "name": "삼성전자", "sector": "반도체/AI", "reason": "이 종목을 추천하는 핵심 근거 1~2문장", "signal": "BUY"}}]}}
+선택 규칙:
+- 투자 스타일과 재무 데이터가 맞지 않는 종목은 제외하세요 (예: 고ROE 스타일인데 ROE가 낮은 종목 제외).
+- PER·PBR이 지나치게 고평가된 종목은 BUY 대신 WATCH로 처리하거나 제외하세요.
+- 근거는 위 재무 데이터에 기반해 구체적으로 작성하세요.
 
-ticker는 한국 주식 6자리 숫자 코드.
-signal: BUY(신규 매수 적합) / HOLD(보유 유지) / WATCH(관망 후 진입 검토) / SELL(매도 고려).
+아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요.
+
+{{"message": "추천 전략 요약 2~3문장", "stocks": [{{"ticker": "005930", "name": "삼성전자", "sector": "반도체/AI", "reason": "추천 근거 (재무 수치 포함) 1~2문장", "signal": "BUY"}}]}}
+
+signal: BUY(신규 매수 적합) / HOLD(보유 유지) / WATCH(관망) / SELL(매도 고려).
 모든 텍스트는 한국어로 작성하세요."""
 
     try:
