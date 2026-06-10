@@ -424,6 +424,17 @@ def get_macro_snapshot() -> dict:
     if dji:
         result["dji"] = dji
 
+    vix = _yahoo_us_index("^VIX", "VIX")
+    if vix:
+        result["vix"] = vix
+
+    vkospi = _yahoo_us_index("^VKOSPI", "VKOSPI")
+    if not vkospi:
+        # NAVER Finance fallback
+        vkospi = _naver_index("VKOSPI")
+    if vkospi:
+        result["vkospi"] = vkospi
+
     employment: dict = {}
     us_emp = _us_employment()
     employment.update(us_emp)

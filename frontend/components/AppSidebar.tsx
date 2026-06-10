@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  Activity,
   BarChart3,
   ChevronLeft,
   ChevronRight,
@@ -138,6 +139,38 @@ function MacroPanel({
             </div>
           </div>
         ))}
+
+        {(macro?.vkospi || macro?.vix) && (
+          <>
+            <div className="my-1 border-t border-slate-100" />
+            {[
+              macro?.vkospi ? { label: "VKOSPI", value: macro.vkospi.price, change: macro.vkospi.change_rate } : null,
+              macro?.vix   ? { label: "VIX",     value: macro.vix.price,    change: macro.vix.change_rate }    : null,
+            ]
+              .filter(Boolean)
+              .map((item) => {
+                const v = item!.value;
+                const { sig, cls } =
+                  v >= 25 ? { sig: "공포", cls: "bg-rose-50 text-rose-700" } :
+                  v >= 15 ? { sig: "보통", cls: "bg-amber-50 text-amber-700" } :
+                            { sig: "안정", cls: "bg-emerald-50 text-emerald-700" };
+                return (
+                  <div key={item!.label} className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                        <Activity className="h-4 w-4" />
+                      </div>
+                      <span className="truncate text-xs font-medium text-slate-500">{item!.label}</span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <span className="text-sm font-bold text-slate-900">{v.toFixed(2)}</span>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${cls}`}>{sig}</span>
+                    </div>
+                  </div>
+                );
+              })}
+          </>
+        )}
 
         {empEntries.length > 0 && (
           <>

@@ -83,6 +83,8 @@ export type MacroSnapshot = {
   sp500?: IndexSnapshot;
   nasdaq?: IndexSnapshot;
   dji?: IndexSnapshot;
+  vix?: IndexSnapshot;
+  vkospi?: IndexSnapshot;
   employment?: {
     us_unemployment?: EmploymentIndicator;
     us_nonfarm_payrolls?: EmploymentIndicator;
