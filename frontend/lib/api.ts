@@ -251,6 +251,34 @@ export async function fetchRecommendation(
   }
 }
 
+export type EntryExitResult = {
+  current_price: number;
+  entry_low: number;
+  entry_high: number;
+  target_1: number;
+  target_2: number | null;
+  stop_loss: number;
+  basis: string;
+  confidence: "high" | "medium" | "low";
+};
+
+export async function fetchEntryExit(
+  ticker: string,
+  financial: { per?: number | null; pbr?: number | null; roe?: number | null }
+): Promise<EntryExitResult | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/entry-exit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ ticker, financial }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function askStockQuestion(
   ticker: string,
   question: string,

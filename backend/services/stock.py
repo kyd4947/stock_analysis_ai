@@ -203,3 +203,50 @@ def get_naver_financials(ticker: str) -> dict:
         return result
     except Exception:
         return {}
+
+
+def get_price_history(ticker: str) -> dict:
+    """Yahoo Finance에서 60일 일별 종가 조회 및 이동평균·고저 계산."""
+    for suffix in [".KS", ".KQ"]:
+        try:
+            r = requests.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}{suffix}",
+                params={"interval": "1d", "range": "3mo"},
+                headers=_YAHOO_HEADERS,
+                timeout=10,
+            )
+            if not r.ok:
+                continue
+            result_list = (r.json().get("chart") or {}).get("result")
+            if not result_list:
+                continue
+            quotes = result_list[0].get("indicators", {}).get("quote", [{}])[0]
+            closes = quotes.get("close", [])
+            highs  = quotes.get("high",  [])
+            lows   = quotes.get("low",   [])
+
+            # None 제거
+            rows = [(c, h, l) for c, h, l in zip(closes, highs, lows) if c]
+            if len(rows) < 5:
+                continue
+
+            cs = [r[0] for r in rows]
+
+            def _ma(prices, n):
+                if len(prices) < n:
+                    return None
+                return round(sum(prices[-n:]) / n)
+
+            result = {
+                "high_60d": round(max(r[1] for r in rows)),
+                "low_60d":  round(min(r[2] for r in rows)),
+                "ma5":  _ma(cs, 5),
+                "ma20": _ma(cs, 20),
+                "ma60": _ma(cs, 60),
+                "recent_closes": [round(c) for c in cs[-10:]],
+            }
+            print(f"[Stock] {ticker} price history OK ({suffix}): {len(rows)}days", flush=True)
+            return result
+        except Exception as e:
+            print(f"[Stock] {ticker} price_history {suffix} error: {e}", flush=True)
+    return {}

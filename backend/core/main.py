@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.core.limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
-from backend.routers import screen, macro, chat, search, market_insight, prices, recommend
+from backend.routers import screen, macro, chat, search, market_insight, prices, recommend, entry_exit
 
 # ALLOWED_ORIGINS 환경변수: 쉼표로 구분된 허용 도메인 목록
 # 예: https://your-app.vercel.app,https://your-custom-domain.com
@@ -55,6 +55,7 @@ app.include_router(search.router, prefix="/api")
 app.include_router(market_insight.router, prefix="/api")
 app.include_router(prices.router, prefix="/api")
 app.include_router(recommend.router, prefix="/api")
+app.include_router(entry_exit.router, prefix="/api")
 
 
 @app.get("/")

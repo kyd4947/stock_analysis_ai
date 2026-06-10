@@ -232,6 +232,98 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
         }
 
 
+def analyze_entry_exit(
+    ticker: str,
+    current_price: float,
+    price_history: dict,
+    news_articles: list[dict],
+    macro: dict,
+    financial: dict,
+) -> dict:
+    """Thinking mode로 매수/매도 타점 분석. 실제 가격 데이터 기반."""
+    h60  = price_history.get("high_60d")
+    l60  = price_history.get("low_60d")
+    ma5  = price_history.get("ma5")
+    ma20 = price_history.get("ma20")
+    ma60 = price_history.get("ma60")
+    recent = price_history.get("recent_closes", [])
+
+    def _p(v):
+        return f"{v:,.0f}원" if v else "N/A"
+
+    recent_str = " → ".join(f"{c:,.0f}" for c in recent) if recent else "없음"
+    news_text  = "\n".join(f"- {a['title']}" for a in news_articles[:5]) or "없음"
+
+    prompt = f"""당신은 한국 주식 기술적 분석 전문 AI입니다.
+아래 실제 데이터만을 근거로 {ticker} 종목의 매수·매도 타점을 산출하세요.
+
+[현재가 및 기술적 지표 — 실제 데이터]
+현재가: {_p(current_price)}
+60일 고점: {_p(h60)} | 60일 저점: {_p(l60)}
+5일 이동평균(MA5): {_p(ma5)}
+20일 이동평균(MA20): {_p(ma20)}
+60일 이동평균(MA60): {_p(ma60)}
+최근 10일 종가: {recent_str}
+
+[재무지표]
+PER: {financial.get('per') or 'N/A'} | PBR: {financial.get('pbr') or 'N/A'} | ROE: {financial.get('roe') or 'N/A'}%
+
+[거시경제]
+USD/KRW: {macro.get('exchange_rate_usdkrw', 'N/A')} | 기준금리: {macro.get('policy_rate', 'N/A')}%
+
+[오늘 관련 뉴스]
+{news_text}
+
+[타점 산출 규칙 — 반드시 준수]
+1. 위 실제 숫자들에서만 지지·저항 근거를 찾으세요. 없는 수치를 만들지 마세요.
+2. 매수 구간(entry_low~entry_high): MA20·MA60·60일저점 중 가까운 지지선 부근
+3. 1차 목표가(target_1): 가장 가까운 저항선 (MA5 위 또는 최근 고점 부근)
+4. 2차 목표가(target_2): 60일 고점 방향 다음 저항선 (없으면 null)
+5. 손절가(stop_loss): 매수 구간 하단에서 1~3% 아래 주요 지지선 이탈 기준
+6. 근거(basis): 사용한 실제 수치를 인용하며 2~3문장
+7. confidence: 데이터 신뢰도 기반 high/medium/low
+
+JSON만 응답. 마크다운 금지.
+{{"entry_low": 숫자, "entry_high": 숫자, "target_1": 숫자, "target_2": 숫자또는null, "stop_loss": 숫자, "basis": "근거 문장", "confidence": "high|medium|low"}}"""
+
+    # Thinking mode 시도 → 실패 시 일반 생성으로 fallback
+    text = None
+    try:
+        from google.genai import types as _gt
+        client = _client()
+        resp = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=_gt.GenerateContentConfig(
+                thinking_config=_gt.ThinkingConfig(thinking_budget=8000)
+            ),
+        )
+        text = resp.text.strip()
+        print(f"[Gemini] entry_exit {ticker} thinking mode OK", flush=True)
+    except Exception as e:
+        print(f"[Gemini] entry_exit {ticker} thinking failed ({e}), fallback", flush=True)
+
+    if text is None:
+        try:
+            text = _generate(prompt)
+        except Exception as e:
+            print(f"[Gemini] entry_exit {ticker} fallback error: {e}", flush=True)
+            return {"error": "타점 분석 중 오류가 발생했습니다."}
+
+    try:
+        text = re.sub(r"```(?:json)?\s*", "", text)
+        text = re.sub(r"```", "", text).strip()
+        s, e2 = text.find("{"), text.rfind("}")
+        if s != -1 and e2 > s:
+            text = text[s : e2 + 1]
+        result = json.loads(text)
+        result["current_price"] = round(current_price)
+        return result
+    except Exception as e:
+        print(f"[Gemini] entry_exit {ticker} parse error: {e}", flush=True)
+        return {"error": "응답 파싱 중 오류가 발생했습니다."}
+
+
 def answer_question(ticker: str, question: str, context_summary: str = "") -> str:
     ctx = f"\n\n[분석 컨텍스트 — 이 데이터만 근거로 사용]\n{context_summary}" if context_summary else ""
     prompt = f"""당신은 한국 주식 투자 분석 AI입니다.{ctx}

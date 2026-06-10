@@ -13,6 +13,8 @@ import {
   MessageSquare,
   Newspaper,
   Send,
+  Sparkles,
+  Target,
   TrendingDown,
   TrendingUp,
   Users,
@@ -23,8 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { askStockQuestion } from "@/lib/api";
-import type { StockScreenResult } from "@/lib/api";
+import { askStockQuestion, fetchEntryExit } from "@/lib/api";
+import type { StockScreenResult, EntryExitResult } from "@/lib/api";
 
 type StockScreenCardProps = {
   item: StockScreenResult;
@@ -146,6 +148,10 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
   const [chatLoading, setChatLoading] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
+  const [entryExit, setEntryExit] = React.useState<EntryExitResult | null>(null);
+  const [entryExitLoading, setEntryExitLoading] = React.useState(false);
+  const [entryExitError, setEntryExitError] = React.useState("");
+
   React.useEffect(() => {
     if (chatOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -166,6 +172,21 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
   ]
     .filter(Boolean)
     .join(" | ");
+
+  async function handleEntryExit() {
+    setEntryExitLoading(true);
+    setEntryExitError("");
+    setEntryExit(null);
+    try {
+      const result = await fetchEntryExit(item.ticker, item.financial);
+      if (!result) throw new Error("데이터를 가져오지 못했습니다.");
+      setEntryExit(result);
+    } catch (e) {
+      setEntryExitError(e instanceof Error ? e.message : "오류가 발생했습니다.");
+    } finally {
+      setEntryExitLoading(false);
+    }
+  }
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -436,6 +457,98 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
             </div>
           </section>
         )}
+
+        {/* 타점 분석 */}
+        <div className="border-t border-slate-100 pt-4 space-y-3">
+          <Button
+            variant="outline"
+            onClick={handleEntryExit}
+            disabled={entryExitLoading}
+            className="h-9 w-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {entryExitLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Target className="mr-2 h-4 w-4" />
+            )}
+            {entryExitLoading ? "AI가 타점 계산 중..." : "AI 타점 분석 (매수·매도 구간)"}
+          </Button>
+
+          {entryExitError && (
+            <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">{entryExitError}</p>
+          )}
+
+          {entryExit && (
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="flex items-center justify-between bg-slate-950 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-white" />
+                  <span className="text-sm font-bold text-white">AI 타점 분석</span>
+                  <span className="text-xs text-slate-400">현재가 {entryExit.current_price.toLocaleString("ko-KR")}원</span>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  entryExit.confidence === "high"
+                    ? "bg-emerald-500 text-white"
+                    : entryExit.confidence === "medium"
+                    ? "bg-amber-500 text-white"
+                    : "bg-slate-500 text-white"
+                }`}>
+                  신뢰도 {entryExit.confidence === "high" ? "높음" : entryExit.confidence === "medium" ? "보통" : "낮음"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-4 sm:divide-y-0">
+                <div className="p-4">
+                  <p className="text-xs font-semibold text-emerald-600">매수 구간</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">
+                    {entryExit.entry_low.toLocaleString("ko-KR")}
+                    <span className="mx-1 text-slate-400">~</span>
+                    {entryExit.entry_high.toLocaleString("ko-KR")}
+                  </p>
+                  <p className="text-[10px] text-slate-400">원</p>
+                </div>
+                <div className="p-4">
+                  <p className="text-xs font-semibold text-blue-600">1차 목표가</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">
+                    {entryExit.target_1.toLocaleString("ko-KR")}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    +{(((entryExit.target_1 - entryExit.current_price) / entryExit.current_price) * 100).toFixed(1)}%
+                  </p>
+                </div>
+                <div className="p-4">
+                  <p className="text-xs font-semibold text-blue-400">2차 목표가</p>
+                  {entryExit.target_2 ? (
+                    <>
+                      <p className="mt-1 text-sm font-bold text-slate-950">
+                        {entryExit.target_2.toLocaleString("ko-KR")}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        +{(((entryExit.target_2 - entryExit.current_price) / entryExit.current_price) * 100).toFixed(1)}%
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm text-slate-400">—</p>
+                  )}
+                </div>
+                <div className="p-4">
+                  <p className="text-xs font-semibold text-rose-600">손절가</p>
+                  <p className="mt-1 text-sm font-bold text-slate-950">
+                    {entryExit.stop_loss.toLocaleString("ko-KR")}
+                  </p>
+                  <p className="text-[10px] text-rose-400">
+                    {(((entryExit.stop_loss - entryExit.current_price) / entryExit.current_price) * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-xs leading-5 text-slate-600">{entryExit.basis}</p>
+                <p className="mt-1 text-[10px] text-slate-400">⚠ 투자 판단은 본인 책임이며, AI 분석은 참고용입니다.</p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Q&A 채팅 토글 버튼 */}
         <div className="border-t border-slate-100 pt-4">
