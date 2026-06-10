@@ -185,7 +185,7 @@ def recommend_stocks(user_profile: dict, macro: dict, candidates: list[dict]) ->
     us_str = " | ".join(us_parts) if us_parts else "N/A"
 
     prompt = f"""당신은 한국 주식 투자 전문 AI 애널리스트입니다.
-아래 후보 종목의 실시간 재무 데이터를 보고, 투자자 프로필에 가장 잘 맞는 3~5종목을 골라 추천하세요.
+아래 후보 종목의 실시간 재무 데이터를 보고, 투자자 프로필 기준에서 **지금 바로 매수할 수 있는** 종목만 2~3개 엄선하여 추천하세요.
 
 [투자자 프로필]
 리스크 허용도: {risk} | 투자 스타일: {style or "설정 없음"} | 투자 기간: {horizon}
@@ -197,16 +197,16 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 [후보 종목 실시간 재무 데이터]
 {candidates_text}
 
-선택 규칙:
-- 투자 스타일과 재무 데이터가 맞지 않는 종목은 제외하세요 (예: 고ROE 스타일인데 ROE가 낮은 종목 제외).
-- PER·PBR이 지나치게 고평가된 종목은 BUY 대신 WATCH로 처리하거나 제외하세요.
-- 근거는 위 재무 데이터에 기반해 구체적으로 작성하세요.
+[엄격한 선택 규칙]
+1. signal은 반드시 BUY만 사용하세요. WATCH·HOLD·SELL 종목은 목록에 넣지 마세요.
+2. BUY 근거가 명확하지 않으면 차라리 2개만 추천하세요. 억지로 3개를 채우지 마세요.
+3. 투자 스타일과 재무 지표가 맞는 종목만 포함하세요 (예: 고ROE 스타일 → ROE 15% 이상 우선).
+4. 근거에는 반드시 실제 재무 수치(PER, ROE 등)를 포함하세요. 수치 없는 막연한 근거 금지.
 
 아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요.
 
-{{"message": "추천 전략 요약 2~3문장", "stocks": [{{"ticker": "005930", "name": "삼성전자", "sector": "반도체/AI", "reason": "추천 근거 (재무 수치 포함) 1~2문장", "signal": "BUY"}}]}}
+{{"message": "추천 전략 요약 2~3문장", "stocks": [{{"ticker": "005930", "name": "삼성전자", "sector": "반도체/AI", "reason": "ROE 00%, PER 00배 기준 추천 근거 1~2문장", "signal": "BUY"}}]}}
 
-signal: BUY(신규 매수 적합) / HOLD(보유 유지) / WATCH(관망) / SELL(매도 고려).
 모든 텍스트는 한국어로 작성하세요."""
 
     try:
