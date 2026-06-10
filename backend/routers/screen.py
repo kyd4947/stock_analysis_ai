@@ -9,7 +9,7 @@ from backend.core.limiter import limiter
 from backend.services.stock import get_stock_data, get_naver_financials
 from backend.services.macro_service import get_macro_snapshot
 from backend.services.dart import get_dart_disclosures, get_shareholders, get_dart_financials, name_to_ticker
-from backend.services.news import get_stock_news
+from backend.services.news import get_stock_news, get_us_market_news
 from backend.services import gemini as gemini_svc
 
 router = APIRouter()
@@ -61,6 +61,7 @@ async def _process_ticker(
     macro: dict,
     min_score: float,
     loop: asyncio.AbstractEventLoop,
+    us_news: list[dict],
 ) -> dict | None:
     ticker = _resolve_ticker(ticker)
     stock, dart, shareholders, news_articles, dart_fin, naver_fin = await asyncio.gather(
@@ -130,6 +131,7 @@ async def _process_ticker(
             financial=financial,
             dart=dart,
             news_articles=news_articles,
+            us_news_articles=us_news,
             price=stock.get("price") or 0,
         ),
     )
@@ -168,7 +170,10 @@ async def _process_ticker(
 @limiter.limit("5/minute")
 async def screen_stocks(request: Request, req: ScreenRequest):
     loop = asyncio.get_event_loop()
-    macro = await loop.run_in_executor(None, get_macro_snapshot)
+    macro, us_news = await asyncio.gather(
+        loop.run_in_executor(None, get_macro_snapshot),
+        loop.run_in_executor(None, get_us_market_news, 5),
+    )
 
     tickers = req.tickers[: req.preferences.top_k]
     tasks = [
@@ -178,6 +183,7 @@ async def screen_stocks(request: Request, req: ScreenRequest):
             macro=macro,
             min_score=req.preferences.min_score,
             loop=loop,
+            us_news=us_news,
         )
         for t in tickers
     ]

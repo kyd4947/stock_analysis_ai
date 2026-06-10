@@ -205,6 +205,17 @@ def get_stock_news(ticker: str, company_name: str = "") -> list[dict]:
     return []
 
 
+def get_us_market_news(limit: int = 5) -> list[dict]:
+    """미국 증시 관련 한국어 뉴스 (전날 미국 시장 동향)."""
+    articles = _google_news_rss("미국증시 나스닥 뉴욕증시 S&P500 연준 when:1d", limit=15)
+    if articles:
+        return _sort_by_date(articles)[:limit]
+    # fallback: 연합뉴스 경제에서 미국 관련 필터
+    all_art = _yonhap_rss(limit=30)
+    us_art = [a for a in all_art if any(kw in a.get("title", "") for kw in ["나스닥", "뉴욕", "미국", "다우", "S&P", "연준", "Fed"])]
+    return _sort_by_date(us_art)[:limit]
+
+
 def get_market_news() -> list[dict]:
     """한국 주식 시장 전반 뉴스. 오늘(KST) 기사 우선, 없으면 최근 2일."""
     all_candidates: list[dict] = []

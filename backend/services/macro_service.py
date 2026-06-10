@@ -214,6 +214,41 @@ def _ecos_cpi_yoy() -> float | None:
     return None
 
 
+def _yahoo_us_index(symbol: str, label: str) -> dict | None:
+    """Yahoo Finance에서 미국 지수(S&P500/Nasdaq/Dow) 전일 종가 및 등락률 조회."""
+    for base in ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"]:
+        try:
+            r = requests.get(
+                f"{base}/v8/finance/chart/{symbol}",
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                    "Accept": "application/json",
+                },
+                timeout=8,
+            )
+            if not r.ok:
+                continue
+            result_list = (r.json().get("chart") or {}).get("result")
+            if not result_list:
+                continue
+            meta = result_list[0].get("meta", {})
+            price = float(meta.get("regularMarketPrice") or meta.get("previousClose") or 0)
+            prev = float(meta.get("previousClose") or meta.get("chartPreviousClose") or 0)
+            if price > 0 and prev > 0:
+                change_val = round(price - prev, 2)
+                change_rate = round(change_val / prev * 100, 2)
+                print(f"[Macro] {label} OK: {price} ({change_rate:+.2f}%)", flush=True)
+                return {
+                    "price": round(price, 2),
+                    "change_val": change_val,
+                    "change_rate": change_rate,
+                    "positive": change_val >= 0,
+                }
+        except Exception as e:
+            print(f"[Macro] {label} {base} error: {e}", flush=True)
+    return None
+
+
 def _fred_series(series_id: str) -> float | None:
     if not settings.FRED_API_KEY:
         return None
@@ -269,5 +304,17 @@ def get_macro_snapshot() -> dict:
     us_10y = _fred_series("DGS10")
     if us_10y is not None:
         result["us_10y_yield"] = us_10y
+
+    sp500 = _yahoo_us_index("^GSPC", "S&P500")
+    if sp500:
+        result["sp500"] = sp500
+
+    nasdaq = _yahoo_us_index("^IXIC", "Nasdaq")
+    if nasdaq:
+        result["nasdaq"] = nasdaq
+
+    dji = _yahoo_us_index("^DJI", "Dow Jones")
+    if dji:
+        result["dji"] = dji
 
     return result

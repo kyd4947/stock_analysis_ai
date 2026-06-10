@@ -67,6 +67,7 @@ def analyze_stock(
     dart: dict,
     news_articles: list[dict],
     price: float,
+    us_news_articles: list[dict] | None = None,
 ) -> dict:
     style = ", ".join(_STYLE_MAP.get(s, s) for s in user_profile.get("preferred_style", []))
     horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
@@ -75,6 +76,20 @@ def analyze_stock(
     news_text = "\n".join(f"- {a['title']}" for a in news_articles[:3]) or "뉴스 없음"
     risk_text = ", ".join(dart.get("risk_flags", [])) or "없음"
     highlights_text = "\n".join(f"- {h}" for h in dart.get("highlights", [])) or "없음"
+
+    # 미국 증시 동향
+    us_parts = []
+    if macro.get("sp500"):
+        r = macro["sp500"]["change_rate"]
+        us_parts.append(f"S&P500 {r:+.2f}%")
+    if macro.get("nasdaq"):
+        r = macro["nasdaq"]["change_rate"]
+        us_parts.append(f"나스닥 {r:+.2f}%")
+    if macro.get("dji"):
+        r = macro["dji"]["change_rate"]
+        us_parts.append(f"다우 {r:+.2f}%")
+    us_market_str = " | ".join(us_parts) if us_parts else "데이터 없음"
+    us_news_text = "\n".join(f"- {a['title']}" for a in (us_news_articles or [])[:3]) or "없음"
 
     def _fmt_fin(v) -> str:
         if v is None or v == 0:
@@ -88,8 +103,14 @@ def analyze_stock(
 [투자자 프로필]
 리스크 선호: {risk} | 투자 스타일: {style or "없음"} | 투자 기간: {horizon}
 
-[거시경제]
+[한국 거시경제]
 USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macro.get("policy_rate", "N/A")}% | 미국 기준금리: {macro.get("fed_funds_rate", "N/A")}% | 인플레이션(YoY): {macro.get("inflation_yoy", "N/A")}%
+
+[전날 미국 증시 (오늘 한국 시장 영향)]
+{us_market_str}
+
+[미국 시장 주요 뉴스]
+{us_news_text}
 
 [재무]
 현재가: {price_str} | PER: {_fmt_fin(financial.get("per"))} | PBR: {_fmt_fin(financial.get("pbr"))} | ROE: {_fmt_fin(financial.get("roe"))}{'%' if financial.get('roe') else ''}
@@ -100,7 +121,7 @@ USD/KRW: {macro.get("exchange_rate_usdkrw", "N/A")} | 한국 기준금리: {macr
 [DART 리스크 공시]
 {risk_text}
 
-[최근 뉴스]
+[종목 관련 최신 뉴스]
 {news_text}
 
 위 데이터를 분석하여 아래 JSON 형식으로만 응답하세요. 마크다운(```)을 절대 사용하지 마세요. JSON 외 다른 텍스트를 포함하지 마세요.
