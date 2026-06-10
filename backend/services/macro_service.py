@@ -273,6 +273,113 @@ def _fred_series(series_id: str) -> float | None:
     return None
 
 
+def _signal(value: float, good_below: float | None, bad_above: float | None) -> str:
+    """값이 낮을수록 좋은 지표(실업률·실업수당)용 신호 판정."""
+    if good_below is not None and value <= good_below:
+        return "호재"
+    if bad_above is not None and value >= bad_above:
+        return "악재"
+    return "중립"
+
+
+def _signal_high(value: float, good_above: float, bad_below: float) -> str:
+    """값이 높을수록 좋은 지표(고용 증가)용 신호 판정."""
+    if value >= good_above:
+        return "호재"
+    if value <= bad_below:
+        return "악재"
+    return "중립"
+
+
+def _fred_series_n(series_id: str, n: int = 2) -> list[float]:
+    """FRED에서 최신 n개 관측값 반환."""
+    if not settings.FRED_API_KEY:
+        return []
+    try:
+        r = requests.get(
+            "https://api.stlouisfed.org/fred/series/observations",
+            params={
+                "series_id": series_id,
+                "api_key": settings.FRED_API_KEY,
+                "file_type": "json",
+                "sort_order": "desc",
+                "limit": n,
+            },
+            timeout=8,
+        )
+        if r.ok:
+            return [
+                float(o["value"])
+                for o in r.json().get("observations", [])
+                if o.get("value") not in (".", None, "")
+            ]
+    except Exception:
+        pass
+    return []
+
+
+def _us_employment() -> dict:
+    """미국 고용지표 3종: 실업률·비농업고용변화·신규실업수당."""
+    result = {}
+
+    # 실업률 (UNRATE, %)
+    vals = _fred_series_n("UNRATE", 1)
+    if vals:
+        v = round(vals[0], 1)
+        result["us_unemployment"] = {
+            "label": "미국 실업률", "value": v, "unit": "%",
+            "signal": _signal(v, good_below=4.0, bad_above=5.5),
+        }
+
+    # 비농업고용 전월대비 변화 (PAYEMS, 천 명)
+    vals = _fred_series_n("PAYEMS", 2)
+    if len(vals) >= 2:
+        change = round(vals[0] - vals[1], 0)
+        result["us_nonfarm_payrolls"] = {
+            "label": "미국 비농업고용", "value": change, "unit": "K",
+            "signal": _signal_high(change, good_above=200, bad_below=50),
+        }
+
+    # 신규 실업수당 청구 (ICSA, 명 → 천 명으로 표시)
+    vals = _fred_series_n("ICSA", 1)
+    if vals:
+        v = round(vals[0] / 1000, 1)
+        result["us_initial_claims"] = {
+            "label": "미국 신규실업수당", "value": v, "unit": "K",
+            "signal": _signal(v * 1000, good_below=250_000, bad_above=400_000),
+        }
+
+    return result
+
+
+def _kr_unemployment() -> dict | None:
+    """한국 실업률 (ECOS 경제활동인구조사)."""
+    if not settings.ECOS_API_KEY:
+        return None
+    try:
+        today = datetime.date.today()
+        start = (today.replace(day=1) - datetime.timedelta(days=90)).strftime("%Y%m")
+        end = today.strftime("%Y%m")
+        # 901Y025: 경제활동인구조사 주요지표, 0102000: 실업률(계절조정)
+        url = (
+            f"https://ecos.bok.or.kr/api/StatisticSearch"
+            f"/{settings.ECOS_API_KEY}/json/kr/1/3/901Y025/M/{start}/{end}/0102000"
+        )
+        r = requests.get(url, timeout=8)
+        if r.ok:
+            rows = r.json().get("StatisticSearch", {}).get("row", [])
+            rows = [row for row in rows if row.get("DATA_VALUE") not in (None, "", " ")]
+            if rows:
+                v = round(float(rows[-1]["DATA_VALUE"]), 1)
+                return {
+                    "label": "한국 실업률", "value": v, "unit": "%",
+                    "signal": _signal(v, good_below=3.0, bad_above=4.5),
+                }
+    except Exception as e:
+        print(f"[Macro] KR unemployment error: {e}", flush=True)
+    return None
+
+
 def get_macro_snapshot() -> dict:
     result: dict = {}
 
@@ -316,5 +423,14 @@ def get_macro_snapshot() -> dict:
     dji = _yahoo_us_index("^DJI", "Dow Jones")
     if dji:
         result["dji"] = dji
+
+    employment: dict = {}
+    us_emp = _us_employment()
+    employment.update(us_emp)
+    kr_unemp = _kr_unemployment()
+    if kr_unemp:
+        employment["kr_unemployment"] = kr_unemp
+    if employment:
+        result["employment"] = employment
 
     return result

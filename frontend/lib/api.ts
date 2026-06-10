@@ -66,6 +66,13 @@ export type IndexSnapshot = {
   positive: boolean;
 };
 
+export type EmploymentIndicator = {
+  label: string;
+  value: number;
+  unit: string;
+  signal: "호재" | "중립" | "악재";
+};
+
 export type MacroSnapshot = {
   exchange_rate_usdkrw?: number;
   policy_rate?: number;
@@ -73,6 +80,12 @@ export type MacroSnapshot = {
   kospi?: IndexSnapshot;
   kosdaq?: IndexSnapshot;
   usd_krw?: IndexSnapshot;
+  employment?: {
+    us_unemployment?: EmploymentIndicator;
+    us_nonfarm_payrolls?: EmploymentIndicator;
+    us_initial_claims?: EmploymentIndicator;
+    kr_unemployment?: EmploymentIndicator;
+  };
 };
 
 export type ChatMessage = {
