@@ -1,7 +1,7 @@
 """
-NAVER Finance 모바일 API를 이용한 한국 주식 실시간 데이터 수집.
-전 종목(KOSPI/KOSDAQ) 지원, API 키 불필요, 실시간 가격.
-재무지표(PER/PBR/ROE)는 totalInfos에서 가져오며, DART에서 EPS/BPS로 계산한 값으로 보완.
+한국 주식 실시간 데이터 수집.
+1차: NAVER Finance 모바일 API
+2차: Yahoo Finance (NAVER 실패 시 자동 fallback)
 """
 import time
 import requests
@@ -29,9 +29,48 @@ _NAVER_HEADERS = {
     "Referer": "https://m.stock.naver.com/",
 }
 
+_YAHOO_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Accept": "application/json",
+}
+
+
+def _yahoo_fallback(ticker: str) -> dict:
+    """Yahoo Finance로 한국 주식 가격 조회 (KOSPI→.KS, KOSDAQ→.KQ 순 시도)."""
+    for suffix in [".KS", ".KQ"]:
+        try:
+            r = requests.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}{suffix}",
+                headers=_YAHOO_HEADERS,
+                timeout=8,
+            )
+            if not r.ok:
+                continue
+            result_list = (r.json().get("chart") or {}).get("result")
+            if not result_list:
+                continue
+            meta = result_list[0].get("meta", {})
+            price = float(meta.get("regularMarketPrice") or meta.get("previousClose") or 0)
+            if price <= 0:
+                continue
+            prev = float(meta.get("previousClose") or meta.get("chartPreviousClose") or price)
+            change_val = round(price - prev, 0)
+            change_rate = round(change_val / prev * 100, 2) if prev else 0.0
+            name = meta.get("shortName") or meta.get("longName") or ticker
+            print(f"[Stock] {ticker} Yahoo fallback OK ({suffix}): {price}", flush=True)
+            return {
+                "name": name,
+                "price": round(price),
+                "change_rate": change_rate,
+                "change_value": change_val,
+            }
+        except Exception as e:
+            print(f"[Stock] {ticker} Yahoo {suffix} error: {e}", flush=True)
+    return {}
+
 
 def get_stock_data(ticker: str) -> dict:
-    """NAVER Finance 모바일 API로 실시간 주가 및 재무지표 조회."""
+    """실시간 주가·재무지표 조회. NAVER 실패 시 Yahoo Finance로 자동 전환."""
     result = {
         "ticker": ticker,
         "name": None,
@@ -46,9 +85,11 @@ def get_stock_data(ticker: str) -> dict:
         "bps": None,
     }
 
+    # ── 1차: NAVER Finance ────────────────────────────────────────────────────
+    naver_ok = False
     try:
         r = None
-        for attempt in range(3):
+        for attempt in range(2):
             try:
                 r = requests.get(
                     f"https://m.stock.naver.com/api/stock/{ticker}/basic",
@@ -56,75 +97,73 @@ def get_stock_data(ticker: str) -> dict:
                     timeout=8,
                 )
                 if r.ok:
+                    naver_ok = True
                     break
-                print(f"[Stock] {ticker} attempt {attempt+1} failed: HTTP {r.status_code}", flush=True)
+                print(f"[Stock] NAVER {ticker} attempt {attempt+1}: HTTP {r.status_code}", flush=True)
             except requests.Timeout:
-                print(f"[Stock] {ticker} attempt {attempt+1} timeout", flush=True)
-            if attempt < 2:
+                print(f"[Stock] NAVER {ticker} attempt {attempt+1}: timeout", flush=True)
+            if attempt < 1:
                 time.sleep(1)
 
-        if r is None or not r.ok:
-            return result
-        data = r.json()
-
-        # closePrice 우선, 없으면 다른 필드 시도
-        price = (
-            _num(data.get("closePrice"))
-            or _num(data.get("currentPrice"))
-            or _num(data.get("tradePrice"))
-            or _num(data.get("nv"))
-        )
-        # 이름은 가격과 무관하게 저장 (유효 티커 판별에 사용)
-        name_val = data.get("stockName") or data.get("symbolCode")
-        if name_val:
-            result["name"] = name_val
-
-        if not price:
-            return result
-
-        result.update(
-            {
-                "name": data.get("stockName") or ticker,
-                "price": round(price),
-                "change_rate": round(_signed(data.get("fluctuationsRatio")) or 0.0, 2),
-                "change_value": round(_signed(data.get("compareToPreviousClosePrice")) or 0.0),
-            }
-        )
-
-        # /finance/annual 에서 PER/PBR/ROE/EPS/BPS 추출 (totalInfos 대체)
-        try:
-            fa = requests.get(
-                f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
-                headers=_NAVER_HEADERS,
-                timeout=6,
+        if naver_ok and r is not None:
+            data = r.json()
+            price = (
+                _num(data.get("closePrice"))
+                or _num(data.get("currentPrice"))
+                or _num(data.get("tradePrice"))
+                or _num(data.get("nv"))
             )
-            if fa.ok:
-                fi = fa.json().get("financeInfo", {})
-                titles = fi.get("trTitleList", [])
-                rows = fi.get("rowList", [])
-                # 가장 최근 실적 기간 key (비컨센서스)
-                actual_keys = sorted(
-                    [t["key"] for t in titles if t.get("isConsensus", "N") == "N"],
-                    reverse=True,
-                )
-                key = actual_keys[0] if actual_keys else None
-                if key:
-                    for row in rows:
-                        title = row.get("title", "")
-                        raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
-                        if title in ("PER", "PBR", "BPS"):
-                            val = _num(raw)
-                            if val is not None:
-                                result[title.lower()] = round(val, 2)
-                        elif title in ("ROE", "EPS"):
-                            val = _signed(raw)
-                            if val is not None:
-                                result[title.lower()] = round(val, 2)
-        except Exception:
-            pass
+            name_val = data.get("stockName") or data.get("symbolCode")
+            if name_val:
+                result["name"] = name_val
 
-    except Exception:
-        pass
+            if price:
+                result.update({
+                    "name": data.get("stockName") or ticker,
+                    "price": round(price),
+                    "change_rate": round(_signed(data.get("fluctuationsRatio")) or 0.0, 2),
+                    "change_value": round(_signed(data.get("compareToPreviousClosePrice")) or 0.0),
+                })
+
+                # 재무지표: /finance/annual
+                try:
+                    fa = requests.get(
+                        f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
+                        headers=_NAVER_HEADERS,
+                        timeout=6,
+                    )
+                    if fa.ok:
+                        fi = fa.json().get("financeInfo", {})
+                        titles = fi.get("trTitleList", [])
+                        rows = fi.get("rowList", [])
+                        actual_keys = sorted(
+                            [t["key"] for t in titles if t.get("isConsensus", "N") == "N"],
+                            reverse=True,
+                        )
+                        key = actual_keys[0] if actual_keys else None
+                        if key:
+                            for row in rows:
+                                title = row.get("title", "")
+                                raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
+                                if title in ("PER", "PBR", "BPS"):
+                                    val = _num(raw)
+                                    if val is not None:
+                                        result[title.lower()] = round(val, 2)
+                                elif title in ("ROE", "EPS"):
+                                    val = _signed(raw)
+                                    if val is not None:
+                                        result[title.lower()] = round(val, 2)
+                except Exception:
+                    pass
+
+                return result  # NAVER 성공
+    except Exception as e:
+        print(f"[Stock] NAVER {ticker} exception: {e}", flush=True)
+
+    # ── 2차: Yahoo Finance fallback ───────────────────────────────────────────
+    yahoo = _yahoo_fallback(ticker)
+    if yahoo:
+        result.update(yahoo)
 
     return result
 
