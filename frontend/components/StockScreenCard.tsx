@@ -34,6 +34,76 @@ type StockScreenCardProps = {
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+function renderInline(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**"))
+      return <strong key={i} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*"))
+      return <em key={i} className="italic">{part.slice(1, -1)}</em>;
+    return part;
+  });
+}
+
+function MarkdownMessage({ content }: { content: string }) {
+  const lines = content.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    const numberedMatch = trimmed.match(/^(\d+)\.\s+(.+)/);
+    if (numberedMatch) {
+      const listItems: React.ReactNode[] = [];
+      while (i < lines.length) {
+        const m = lines[i].trim().match(/^(\d+)\.\s+(.+)/);
+        if (!m) break;
+        listItems.push(
+          <li key={i} className="flex gap-2.5">
+            <span className="mt-0.5 shrink-0 text-xs font-bold text-slate-400">{m[1]}.</span>
+            <span className="text-slate-700">{renderInline(m[2])}</span>
+          </li>
+        );
+        i++;
+      }
+      nodes.push(<ol key={`ol-${i}`} className="space-y-1.5">{listItems}</ol>);
+      continue;
+    }
+
+    const bulletMatch = trimmed.match(/^[-•·]\s+(.+)/);
+    if (bulletMatch) {
+      const listItems: React.ReactNode[] = [];
+      while (i < lines.length) {
+        const m = lines[i].trim().match(/^[-•·]\s+(.+)/);
+        if (!m) break;
+        listItems.push(
+          <li key={i} className="flex gap-2.5">
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+            <span className="text-slate-700">{renderInline(m[1])}</span>
+          </li>
+        );
+        i++;
+      }
+      nodes.push(<ul key={`ul-${i}`} className="space-y-1.5">{listItems}</ul>);
+      continue;
+    }
+
+    nodes.push(
+      <p key={i} className="text-slate-700 leading-6">{renderInline(trimmed)}</p>
+    );
+    i++;
+  }
+
+  return <div className="space-y-2.5 text-sm">{nodes}</div>;
+}
+
 function scoreMeta(score: number) {
   if (score >= 0.8)
     return { label: "High", className: "bg-emerald-50 text-emerald-700 border-emerald-100" };
@@ -416,13 +486,17 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 >
                   <div
                     className={cn(
-                      "max-w-[85%] rounded-lg px-3 py-2.5 text-sm leading-6",
+                      "max-w-[85%] rounded-lg px-3 py-2.5",
                       msg.role === "user"
-                        ? "bg-slate-950 text-white"
-                        : "border border-slate-200 bg-white text-slate-700"
+                        ? "bg-slate-950 text-sm leading-6 text-white"
+                        : "border border-slate-200 bg-white"
                     )}
                   >
-                    {msg.content}
+                    {msg.role === "user" ? (
+                      msg.content
+                    ) : (
+                      <MarkdownMessage content={msg.content} />
+                    )}
                   </div>
                 </div>
               ))}

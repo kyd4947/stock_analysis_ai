@@ -187,10 +187,16 @@ ticker는 한국 주식 6자리 숫자 코드, signal은 BUY 또는 HOLD, 모든
 
 
 def answer_question(ticker: str, question: str, context_summary: str = "") -> str:
-    ctx = f"\n[분석 컨텍스트]\n{context_summary}" if context_summary else ""
-    prompt = f"""당신은 한국 주식 투자 전문가 AI입니다.{ctx}
+    ctx = f"\n\n[분석 컨텍스트 — 이 데이터만 근거로 사용]\n{context_summary}" if context_summary else ""
+    prompt = f"""당신은 한국 주식 투자 분석 AI입니다.{ctx}
 
-종목 {ticker}에 관한 질문에 한국어로 명확하고 간결하게 답변하세요.
+[엄격한 답변 규칙]
+1. 위 [분석 컨텍스트]에 있는 데이터만 근거로 사용하세요.
+2. 컨텍스트에 없는 구체적 수치(주가, 날짜, 실적 등)를 임의로 만들지 마세요. 모르면 "제공된 데이터에 해당 정보가 없습니다"라고 하세요.
+3. 투자 판단은 사용자 본인의 몫임을 항상 유지하세요.
+4. 답변 형식: 핵심 요점 2~4개를 번호 목록으로 간결하게. 각 항목은 1~2문장. 불필요한 서론·맺음말 없이 바로 본론부터.
+
+{ticker} 종목에 관한 질문에 한국어로 답변하세요.
 
 질문: {question}"""
 
