@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -110,7 +110,6 @@ export default function Page() {
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [recommendation, setRecommendation] = useState<RecommendResult | null>(null);
   const [recommendLoading, setRecommendLoading] = useState(false);
-  const autoFetchedKeyRef = useRef<string>("");
   const {
     screenResult,
     screenLoading,
@@ -178,14 +177,12 @@ export default function Page() {
     [dashboardItems]
   );
 
-  useEffect(() => {
-    if (!dashboardTickerKey || dashboardTickerKey === autoFetchedKeyRef.current) return;
-    autoFetchedKeyRef.current = dashboardTickerKey;
-
-    setDashboardAutoLoading(true);
-    const tickers = dashboardTickerKey.split(",");
-    fetchPrices(tickers)
-      .then((results) => {
+  const loadDashboardPrices = useCallback(
+    async (tickers: string[], isFirst: boolean) => {
+      if (isFirst) setDashboardAutoLoading(true);
+      try {
+        const results = await fetchPrices(tickers);
+        if (results.length === 0) return;
         setDashboardItems((prev) =>
           prev.map((item) => {
             const r = results.find((s) => s.ticker === item.ticker);
@@ -201,9 +198,21 @@ export default function Page() {
             };
           })
         );
-      })
-      .catch((e) => console.error("[Dashboard] Auto-fetch failed:", e))
-      .finally(() => setDashboardAutoLoading(false));
+      } catch (e) {
+        console.error("[Dashboard] Price fetch failed:", e);
+      } finally {
+        if (isFirst) setDashboardAutoLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!dashboardTickerKey) return;
+    const tickers = dashboardTickerKey.split(",");
+    loadDashboardPrices(tickers, true);
+    const id = setInterval(() => loadDashboardPrices(tickers, false), 30_000);
+    return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dashboardTickerKey]);
 
