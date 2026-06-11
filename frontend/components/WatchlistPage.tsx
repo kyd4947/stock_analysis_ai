@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ExternalLink, Loader2, Plus, Search, Star, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, Search, Star, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { StockSearchBox } from "@/components/StockSearchBox";
 import { useSearchContext } from "@/app/layout";
 
 type WatchlistItem = {
@@ -23,7 +23,6 @@ function scoreMeta(score: number) {
 
 export function WatchlistPage() {
   const [items, setItems] = useState<WatchlistItem[]>([]);
-  const [input, setInput] = useState("");
   const [analyzingTicker, setAnalyzingTicker] = useState<string | null>(null);
   const { handleTickerSearch, setLastTicker, screenResult, screenLoading } = useSearchContext();
 
@@ -64,15 +63,9 @@ export function WatchlistPage() {
     });
   }
 
-  function addTicker(e: React.FormEvent) {
-    e.preventDefault();
-    const ticker = input.trim().toUpperCase();
-    if (!ticker || items.some((i) => i.ticker === ticker)) {
-      setInput("");
-      return;
-    }
+  function addTicker(ticker: string) {
+    if (!ticker || items.some((i) => i.ticker === ticker)) return;
     save([...items, { ticker, addedAt: new Date().toISOString() }]);
-    setInput("");
   }
 
   function removeTicker(ticker: string) {
@@ -99,22 +92,13 @@ export function WatchlistPage() {
           </p>
         </header>
 
-        <form onSubmit={addTicker} className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="종목 코드 입력 (예: 005930)"
-            className="h-10 border-slate-200 bg-white"
-          />
-          <Button
-            type="submit"
-            className="h-10 shrink-0 bg-slate-950 px-4 text-white hover:bg-slate-800"
-            disabled={!input.trim()}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            추가
-          </Button>
-        </form>
+        <StockSearchBox
+          onSelect={addTicker}
+          loading={false}
+          placeholder="종목명 또는 코드로 검색 (예: 삼성전자, 005930)"
+          showLabel={false}
+          className="w-full"
+        />
 
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-20 shadow-sm">

@@ -182,7 +182,6 @@ export default function Page() {
       if (isFirst) setDashboardAutoLoading(true);
       try {
         const results = await fetchPrices(tickers);
-        console.log("[Prices] tickers:", tickers, "results:", results);
         if (results.length === 0) return;
         setDashboardItems((prev) =>
           prev.map((item) => {
