@@ -53,29 +53,6 @@ def get_us_stock_data(ticker: str) -> dict:
         except Exception as e:
             print(f"[US Stock] {ticker} {base} error: {e}", flush=True)
 
-    # Fallback: yfinance
-    try:
-        import yfinance as yf
-        t = yf.Ticker(ticker)
-        fast = t.fast_info
-        price = float(fast.last_price or 0)
-        prev = float(fast.previous_close or 0)
-        if price > 0:
-            change_val = round(price - prev, 2) if prev > 0 else 0.0
-            change_rate = round(change_val / prev * 100, 2) if prev > 0 else 0.0
-            info = t.info
-            print(f"[US Stock yf] {ticker} OK: ${price}", flush=True)
-            return {
-                "price": round(price, 2),
-                "change_val": change_val,
-                "change_rate": change_rate,
-                "positive": change_val >= 0,
-                "name": info.get("longName") or info.get("shortName") or ticker,
-                "sector": info.get("sector") or "",
-                "currency": info.get("currency") or "USD",
-            }
-    except Exception as e:
-        print(f"[US Stock yf] {ticker} error: {e}", flush=True)
     return {}
 
 
@@ -141,23 +118,6 @@ def get_us_stock_financials(ticker: str) -> dict:
                 }
         except Exception as e:
             print(f"[US Fin v10] {ticker} {base} error: {e}", flush=True)
-
-    # 3차: yfinance (쿠키·인증 자동 처리 — 가장 신뢰성 높음)
-    try:
-        import yfinance as yf
-        info = yf.Ticker(ticker).info
-        per = info.get("trailingPE") or info.get("forwardPE")
-        pbr = info.get("priceToBook")
-        roe_raw = info.get("returnOnEquity")
-        roe = round(roe_raw * 100, 2) if roe_raw is not None else None
-        print(f"[US Fin yf] {ticker} OK: PER={per} PBR={pbr} ROE={roe}", flush=True)
-        return {
-            "per": round(per, 2) if per else None,
-            "pbr": round(pbr, 2) if pbr else None,
-            "roe": roe,
-        }
-    except Exception as e:
-        print(f"[US Fin yf] {ticker} error: {e}", flush=True)
 
     return {}
 
