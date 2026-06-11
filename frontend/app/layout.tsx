@@ -84,12 +84,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   useEffect(() => {
+    let firstLoad = true;
     async function loadMacro() {
-      setMacroLoading(true);
+      if (firstLoad) setMacroLoading(true);
       try {
         setMacro(await fetchMacro());
       } finally {
-        setMacroLoading(false);
+        if (firstLoad) {
+          setMacroLoading(false);
+          firstLoad = false;
+        }
       }
     }
     loadMacro();
