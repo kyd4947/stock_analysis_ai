@@ -337,6 +337,36 @@ def _get_vkospi() -> dict | None:
     except Exception as e:
         print(f"[Macro] VKOSPI fchart error: {e}", flush=True)
 
+    # 4차: NAVER KOSPI 일봉 기반 역사적 변동성 (연환산) — yfinance 없이 동일 계산
+    try:
+        import math
+        now = datetime.datetime.now()
+        start = (now - datetime.timedelta(days=45)).strftime("%Y%m%d000000")
+        end = now.strftime("%Y%m%d235959")
+        r = requests.get(
+            "https://m.stock.naver.com/api/chart/domestic/index/KOSPI/day",
+            params={"startDateTime": start, "endDateTime": end},
+            headers=_NAVER_HEADERS,
+            timeout=8,
+        )
+        if r.ok:
+            items = r.json()
+            if items and isinstance(items, list):
+                closes = [
+                    float(item.get("closePrice") or item.get("close") or 0)
+                    for item in items
+                ]
+                closes = [c for c in closes if c > 0]
+                if len(closes) >= 5:
+                    log_rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
+                    mean_r = sum(log_rets) / len(log_rets)
+                    var_r = sum((ret - mean_r) ** 2 for ret in log_rets) / max(len(log_rets) - 1, 1)
+                    ann_vol = round(math.sqrt(var_r) * math.sqrt(252) * 100, 2)
+                    print(f"[Macro] VKOSPI proxy (KOSPI hist vol, NAVER): {ann_vol}", flush=True)
+                    return {"price": ann_vol, "change_val": 0.0, "change_rate": 0.0, "positive": True}
+    except Exception as e:
+        print(f"[Macro] VKOSPI hist vol error: {e}", flush=True)
+
     return None
 
 
