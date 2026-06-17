@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Lock, Wallet, TrendingUp, ShieldCheck, RefreshCw, BarChart3, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,33 @@ const UPCOMING_FEATURES = [
   { icon: BarChart3, label: "AI 리밸런싱 추천", desc: "투자 성향에 맞는 비중 조정을 제안합니다." },
 ];
 
+type Holding = {
+  ticker: string;
+  name: string;
+  quantity: number;
+  avg_price: number;
+};
+
 export function PortfolioPage() {
   const [isConnected, setIsConnected] = useState(false);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleConnect = async () => {
+    setLoading(true);
+    try {
+      // 토스 전용 백엔드 라우터 호출
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+      const res = await fetch(`${API_BASE}/api/toss/holdings`);
+      const data = await res.json();
+      setHoldings(data.holdings || []);
+      setIsConnected(true);
+    } catch (e) {
+      alert("연동 실패: 백엔드 서버가 켜져 있는지 확인하세요.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-full bg-slate-100">
@@ -49,14 +74,43 @@ export function PortfolioPage() {
             </p>
             {!isConnected && (
               <Button 
-                onClick={() => setIsConnected(true)} 
+                onClick={handleConnect} 
+                disabled={loading}
                 className="mt-6 bg-slate-950 text-white hover:bg-slate-800"
               >
-                지금 계좌 연동하기
+                {loading ? "연동 중..." : "지금 계좌 연동하기"}
               </Button>
             )}
           </div>
         </div>
+
+        {/* 실제 보유 종목 리스트 표시 */}
+        {isConnected && holdings.length > 0 && (
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-200 px-5 py-3">
+              <h2 className="text-sm font-bold text-slate-950">실제 보유 종목 ({holdings.length})</h2>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {holdings.map((stock) => (
+                <div key={stock.ticker} className="px-5 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded bg-slate-100 text-xs font-bold text-slate-500">
+                      {stock.ticker.slice(-3)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-950">{stock.name}</p>
+                      <p className="text-xs text-slate-500">{stock.ticker}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-slate-900">{stock.quantity} 주</p>
+                    <p className="text-[11px] text-slate-400">평단: {stock.avg_price.toLocaleString()}원</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 예정 기능 */}
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
