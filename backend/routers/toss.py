@@ -37,14 +37,7 @@ async def get_portfolio_holdings():
         response = await client.get(url, headers=headers)
         
         if response.status_code != 200:
-            # 실제 연동 전에는 테스트를 위해 가상 데이터를 반환하거나 에러를 던집니다.
-            return {
-                "holdings": [
-                    {"ticker": "005930", "name": "삼성전자", "quantity": 15, "avg_price": 71000, "currency": "KRW"},
-                    {"ticker": "000660", "name": "SK하이닉스", "quantity": 8, "avg_price": 182000, "currency": "KRW"},
-                    {"ticker": "NVDA", "name": "엔비디아", "quantity": 10, "avg_price": 135.2, "currency": "USD"}
-                ]
-            }
+            raise HTTPException(status_code=response.status_code, detail=f"Toss API Holdings Error: {response.text}")
         return response.json()
 
 @router.get("/exchange-rate")
@@ -70,10 +63,5 @@ async def get_stock_financials(ticker: str):
         response = await client.get(url, headers=headers)
 
         if response.status_code != 200:
-            # 실제 연동 전에는 테스트를 위해 가상 데이터를 반환하거나 에러를 던집니다.
-            return {
-                "per": 15.2,
-                "pbr": 1.1,
-                "roe": 12.5
-            }
+            raise HTTPException(status_code=response.status_code, detail=f"Toss API Financials Error: {response.text}")
         return response.json()
