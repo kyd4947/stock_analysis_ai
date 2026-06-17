@@ -1,0 +1,17 @@
+# fly.toml — fly launch 후 자동 생성된 앱 이름으로 app = "" 채워짐
+app = ""
+primary_region = "nrt"  # Tokyo (한국에서 가장 가까운 리전)
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false   # 슬립 없음 (무료 플랜에서 핵심)
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

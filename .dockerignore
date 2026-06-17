@@ -1,0 +1,13 @@
+frontend/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+.git/
+.gitignore
+*.md
+node_modules/
+.next/
