@@ -17,6 +17,7 @@ type Holding = {
   name: string;
   quantity: number;
   avg_price: number;
+  currency?: string;
 };
 
 export function PortfolioPage() {
@@ -104,7 +105,11 @@ export function PortfolioPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-slate-900">{stock.quantity} 주</p>
-                    <p className="text-[11px] text-slate-400">평단: {stock.avg_price.toLocaleString()}원</p>
+                    <p className="text-[11px] text-slate-400">
+                      평단: {stock.currency === "USD" ? "$" : ""}
+                      {stock.avg_price.toLocaleString()}
+                      {stock.currency === "USD" ? "" : "원"}
+                    </p>
                   </div>
                 </div>
               ))}

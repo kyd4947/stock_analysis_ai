@@ -278,6 +278,7 @@ async def _process_ticker(
         "news": {"articles": news_articles} if news_articles else None,
         "shareholders": shareholders or None,
         "price_history": price_hist or None,
+        "is_us": False,
     }
     _cache_set(ticker, result)
     return result
