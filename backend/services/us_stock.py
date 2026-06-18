@@ -1,5 +1,5 @@
 """
-미국 주식 데이터 수집 — Yahoo Finance API
+미국 주식 데이터 수집 — Toss Securities Open API → Yahoo Finance API
 """
 import requests
 
@@ -18,8 +18,34 @@ def _raw_val(d: dict, key: str):
 
 
 def get_us_stock_data(ticker: str) -> dict:
-    """Yahoo Finance에서 미국 주식 기본 데이터(가격, 이름, 섹터) 조회."""
+    """미국 주식 기본 데이터(가격, 이름) 조회 — Toss → Yahoo 순서로 시도."""
     ticker = ticker.upper()
+
+    # ── 1차: Toss Securities Open API ─────────────────────────────────────────
+    from backend.services.toss_service import sync_get_prices, sync_get_stocks, _toss_configured
+    if _toss_configured():
+        try:
+            toss_prices = sync_get_prices([ticker])
+            if ticker in toss_prices:
+                p = toss_prices[ticker]
+                name = ticker
+                toss_stocks = sync_get_stocks([ticker])
+                if ticker in toss_stocks:
+                    name = toss_stocks[ticker].get("name") or name
+                print(f"[US Stock] {ticker} Toss OK: ${p['price']}", flush=True)
+                return {
+                    "price": round(p["price"], 2),
+                    "change_val": 0.0,
+                    "change_rate": 0.0,
+                    "positive": True,
+                    "name": name,
+                    "sector": "",
+                    "currency": p.get("currency", "USD"),
+                }
+        except Exception as e:
+            print(f"[US Stock] {ticker} Toss error: {e}", flush=True)
+
+    # ── 2차: Yahoo Finance ────────────────────────────────────────────────────
     for base in _BASES:
         try:
             r = requests.get(
@@ -40,7 +66,7 @@ def get_us_stock_data(ticker: str) -> dict:
                 continue
             change_val = round(price - prev, 2) if prev > 0 else 0.0
             change_rate = round(change_val / prev * 100, 2) if prev > 0 else 0.0
-            print(f"[US Stock] {ticker} OK: ${price} ({change_rate:+.2f}%)", flush=True)
+            print(f"[US Stock] {ticker} Yahoo OK: ${price} ({change_rate:+.2f}%)", flush=True)
             return {
                 "price": round(price, 2),
                 "change_val": change_val,

@@ -1,10 +1,13 @@
 """
 한국 주식 실시간 데이터 수집.
-1차: NAVER Finance 모바일 API
-2차: Yahoo Finance (NAVER 실패 시 자동 fallback)
+1차: Toss Securities Open API
+2차: NAVER Finance 모바일 API
+3차: Yahoo Finance (fallback)
 """
 import time
+from datetime import datetime
 import requests
+from backend.core.config import settings
 
 
 def _num(s) -> float | None:
@@ -70,7 +73,7 @@ def _yahoo_fallback(ticker: str) -> dict:
 
 
 def get_stock_data(ticker: str) -> dict:
-    """실시간 주가·재무지표 조회. NAVER 실패 시 Yahoo Finance로 자동 전환."""
+    """실시간 주가·재무지표 조회. Toss → NAVER → Yahoo 순서로 시도."""
     result = {
         "ticker": ticker,
         "name": None,
@@ -85,7 +88,29 @@ def get_stock_data(ticker: str) -> dict:
         "bps": None,
     }
 
-    # ── 1차: NAVER Finance ────────────────────────────────────────────────────
+    # ── 1차: Toss Securities Open API ─────────────────────────────────────────
+    from backend.services.toss_service import sync_get_prices, _toss_configured
+    if _toss_configured():
+        try:
+            toss_prices = sync_get_prices([ticker])
+            if ticker in toss_prices:
+                p = toss_prices[ticker]
+                result["price"] = round(p["price"])
+                result["name"] = ticker  # name from stocks endpoint below
+                print(f"[Stock] {ticker} Toss price OK: {p['price']}", flush=True)
+
+                # Toss stock info for name/sector
+                from backend.services.toss_service import sync_get_stocks
+                stocks = sync_get_stocks([ticker])
+                if ticker in stocks:
+                    s = stocks[ticker]
+                    result["name"] = s.get("name") or result["name"]
+                    result["sector"] = (s.get("marketCountry") or "") + "/" + (s.get("market") or "")
+                return result  # Toss 성공 (가격+종목명)
+        except Exception as e:
+            print(f"[Stock] {ticker} Toss error: {e}", flush=True)
+
+    # ── 2차: NAVER Finance ────────────────────────────────────────────────────
     naver_ok = False
     try:
         r = None
@@ -125,7 +150,7 @@ def get_stock_data(ticker: str) -> dict:
                     "change_value": round(_signed(data.get("compareToPreviousClosePrice")) or 0.0),
                 })
 
-                # 재무지표: /finance/annual
+                # 재무지표: /finance/annual (마지막으로 완료된 회계연도 사용)
                 try:
                     fa = requests.get(
                         f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
@@ -136,8 +161,13 @@ def get_stock_data(ticker: str) -> dict:
                         fi = fa.json().get("financeInfo", {})
                         titles = fi.get("trTitleList", [])
                         rows = fi.get("rowList", [])
+                        _current_yr = datetime.now().year
                         actual_keys = sorted(
-                            [t["key"] for t in titles if t.get("isConsensus", "N") == "N"],
+                            [
+                                t["key"] for t in titles
+                                if t.get("isConsensus", "N") == "N"
+                                and int(t["key"][:4]) < _current_yr
+                            ],
                             reverse=True,
                         )
                         key = actual_keys[0] if actual_keys else None
@@ -160,7 +190,7 @@ def get_stock_data(ticker: str) -> dict:
     except Exception as e:
         print(f"[Stock] NAVER {ticker} exception: {e}", flush=True)
 
-    # ── 2차: Yahoo Finance fallback ───────────────────────────────────────────
+    # ── 3차: Yahoo Finance fallback ───────────────────────────────────────────
     yahoo = _yahoo_fallback(ticker)
     if yahoo:
         result.update(yahoo)
@@ -181,8 +211,9 @@ def get_naver_financials(ticker: str) -> dict:
         fi = r.json().get("financeInfo", {})
         titles = fi.get("trTitleList", [])
         rows = fi.get("rowList", [])
+        _current_yr = datetime.now().year
         actual_keys = sorted(
-            [t["key"] for t in titles if t.get("isConsensus", "N") == "N"],
+            [t["key"] for t in titles if t.get("isConsensus", "N") == "N" and int(t["key"][:4]) < _current_yr],
             reverse=True,
         )
         if not actual_keys:
@@ -206,7 +237,46 @@ def get_naver_financials(ticker: str) -> dict:
 
 
 def get_price_history(ticker: str) -> dict:
-    """Yahoo Finance에서 1년 일별 OHLCV 조회: 52주 고저·거래량 추세·이동평균·업종 대비 수익률."""
+    """1년 일별 OHLCV 조회: Toss → Yahoo 순서로 시도."""
+    from backend.services.toss_service import sync_get_candles, _toss_configured
+
+    # ── 1차: Toss 캔들 ───────────────────────────────────────────────────────
+    if _toss_configured():
+        try:
+            items = sync_get_candles(ticker, interval="1d", count=365)
+            if len(items) >= 5:
+                cs = [float(c["close"]) for c in items]
+                hs = [float(c["high"]) for c in items]
+                ls = [float(c["low"]) for c in items]
+                vs = [float(c.get("volume", 0)) for c in items if c.get("volume")]
+
+                def _ma(prices, n):
+                    return round(sum(prices[-n:]) / n) if len(prices) >= n else None
+
+                high_52w = round(max(hs))
+                low_52w = round(min(ls))
+                curr = cs[-1]
+                position_52w = round((curr - low_52w) / (high_52w - low_52w) * 100, 1) if high_52w > low_52w else 50.0
+                pct_from_52w_high = round((curr - high_52w) / high_52w * 100, 1)
+                curr_vol = vs[-1] if vs else None
+                avg_vol_20 = round(sum(vs[-21:-1]) / 20) if len(vs) >= 21 else None
+                vol_ratio = round(curr_vol / avg_vol_20, 2) if avg_vol_20 and curr_vol else None
+                ret_5d = round((cs[-1] / cs[-6] - 1) * 100, 2) if len(cs) >= 6 else None
+                ret_20d = round((cs[-1] / cs[-21] - 1) * 100, 2) if len(cs) >= 21 else None
+
+                print(f"[Stock] {ticker} Toss candles OK: {len(items)}days", flush=True)
+                return {
+                    "high_52w": high_52w, "low_52w": low_52w,
+                    "position_52w": position_52w, "pct_from_52w_high": pct_from_52w_high,
+                    "ma5": _ma(cs, 5), "ma20": _ma(cs, 20), "ma60": _ma(cs, 60),
+                    "curr_vol": curr_vol, "avg_vol_20d": avg_vol_20, "vol_ratio_20d": vol_ratio,
+                    "ret_5d": ret_5d, "ret_20d": ret_20d,
+                    "recent_closes": [round(c) for c in cs[-10:]],
+                }
+        except Exception as e:
+            print(f"[Stock] {ticker} Toss candles error: {e}", flush=True)
+
+    # ── 2차: Yahoo Finance ───────────────────────────────────────────────────
     for suffix in [".KS", ".KQ"]:
         try:
             r = requests.get(

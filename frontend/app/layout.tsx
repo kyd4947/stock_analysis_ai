@@ -2,8 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
+import { LoginPage } from "@/components/LoginPage";
 import type { NavItem } from "@/components/AppSidebar";
 import { fetchMacro, screenStocks } from "@/lib/api";
+import { isAuthenticated, clearToken } from "@/lib/auth";
 import type { MacroSnapshot, ScreenResponse } from "@/lib/api";
 import "./globals.css";
 
@@ -53,11 +55,18 @@ export function useSearchContext() {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [activeNav, setActiveNavState] = useState<NavItem>("analysis");
   const [searchLoading, setSearchLoading] = useState(false);
   const [macro, setMacro] = useState<MacroSnapshot | null>(null);
   const [macroLoading, setMacroLoading] = useState(false);
+
+  useEffect(() => {
+    setAuthenticated(isAuthenticated());
+    setAuthChecked(true);
+  }, []);
 
   const [screenResult, setScreenResult] = useState<ScreenResponse | null>(null);
   const [screenLoading, setScreenLoading] = useState(false);
@@ -173,6 +182,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     if (saved) handleTickerSearch(saved);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (!authChecked) {
+    return (
+      <html lang="ko" className="h-full">
+        <body className="h-full bg-slate-100" />
+      </html>
+    );
+  }
+
+  if (!authenticated) {
+    return (
+      <html lang="ko" className="h-full">
+        <body className="h-full bg-slate-100">
+          <LoginPage onLogin={() => { setAuthenticated(true); }} />
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="ko" className="h-full">

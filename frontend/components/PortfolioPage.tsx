@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Lock, Wallet, TrendingUp, ShieldCheck, RefreshCw, BarChart3, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getToken } from "@/lib/auth";
 
 const UPCOMING_FEATURES = [
   { icon: RefreshCw, label: "보유 종목 자동 동기화", desc: "Toss 계좌의 종목을 실시간으로 불러옵니다." },
@@ -28,11 +29,21 @@ export function PortfolioPage() {
   const handleConnect = async () => {
     setLoading(true);
     try {
-      // 토스 전용 백엔드 라우터 호출
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-      const res = await fetch(`${API_BASE}/api/toss/holdings`);
+      const res = await fetch(`${API_BASE}/api/toss/holdings`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
       const data = await res.json();
-      setHoldings(data.holdings || []);
+      // Toss Open API 응답 구조: { result: { items: [...] } }
+      const items = data?.result?.items ?? data?.holdings ?? [];
+      const mapped: Holding[] = items.map((item: any) => ({
+        ticker: item.symbol ?? item.ticker,
+        name: item.name ?? "",
+        quantity: Number(item.quantity ?? 0),
+        avg_price: Number(item.averagePurchasePrice ?? item.avg_price ?? 0),
+        currency: item.currency ?? "KRW",
+      }));
+      setHoldings(mapped);
       setIsConnected(true);
     } catch (e) {
       alert("연동 실패: 백엔드 서버가 켜져 있는지 확인하세요.");

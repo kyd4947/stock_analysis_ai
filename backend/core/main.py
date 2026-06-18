@@ -1,10 +1,12 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from backend.core.limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
-from backend.routers import screen, macro, chat, search, market_insight, prices, recommend, entry_exit, toss
+from backend.core.auth import verify_token
+from backend.routers import screen, macro, chat, search, market_insight, prices, recommend, entry_exit, toss, auth
 
 # ALLOWED_ORIGINS 환경변수: 쉼표로 구분된 허용 도메인 목록
 # 예: https://your-app.vercel.app,https://your-custom-domain.com
@@ -45,9 +47,10 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Accept"],
+    allow_headers=["Content-Type", "Accept", "Authorization"],
 )
 
+app.include_router(auth.router, prefix="/api")
 app.include_router(screen.router, prefix="/api")
 app.include_router(macro.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
@@ -57,6 +60,19 @@ app.include_router(prices.router, prefix="/api")
 app.include_router(recommend.router, prefix="/api")
 app.include_router(entry_exit.router, prefix="/api")
 app.include_router(toss.router, prefix="/api")
+
+PUBLIC_PATHS = {"/", "/api/auth/login", "/docs", "/openapi.json", "/redoc"}
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if request.url.path in PUBLIC_PATHS or request.url.path.startswith(("/docs/", "/openapi.json", "/redoc")):
+        return await call_next(request)
+    auth = request.headers.get("Authorization", "")
+    token = auth.removeprefix("Bearer ").strip()
+    if not token or not verify_token(token):
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    return await call_next(request)
 
 
 @app.get("/")
