@@ -116,7 +116,7 @@ const API_BASE_URL =
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("auth_token");
+    const token = sessionStorage.getItem("auth_token");
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
   return headers;
