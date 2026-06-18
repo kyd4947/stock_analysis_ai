@@ -305,6 +305,124 @@ export async function fetchEntryExit(
   }
 }
 
+// ── Toss Market Data ──────────────────────────────────────────────────────
+
+export type TossPriceResult = {
+  symbol: string;
+  lastPrice: number;
+  change: number;
+  changeRate: number;
+  volume: number;
+  currency: string;
+};
+
+export type TossOrderbookLevel = {
+  price: number;
+  quantity: number;
+};
+
+export type TossOrderbook = {
+  symbol: string;
+  timestamp: number;
+  totalBidQuantity: number;
+  totalAskQuantity: number;
+  bids: TossOrderbookLevel[];
+  asks: TossOrderbookLevel[];
+};
+
+export type TossTrade = {
+  price: number;
+  quantity: number;
+  timestamp: number;
+  side: "BUY" | "SELL";
+};
+
+export type TossPriceLimit = {
+  symbol: string;
+  upperLimit: number;
+  lowerLimit: number;
+  basePrice: number;
+};
+
+export type TossCandle = {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+export async function fetchTossPrices(symbols: string[]): Promise<TossPriceResult[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/toss/prices?symbols=${symbols.join(",")}`, {
+      headers: authHeaders({ Accept: "application/json" }),
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data?.result ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchTossOrderbook(symbol: string): Promise<TossOrderbook | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/toss/orderbook/${symbol}`, {
+      headers: authHeaders({ Accept: "application/json" }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.result ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchTossTrades(symbol: string, count = 30): Promise<TossTrade[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/toss/trades/${symbol}?count=${count}`, {
+      headers: authHeaders({ Accept: "application/json" }),
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data?.result?.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchTossPriceLimits(symbol: string): Promise<TossPriceLimit | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/toss/price-limits/${symbol}`, {
+      headers: authHeaders({ Accept: "application/json" }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.result ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchTossCandles(symbol: string, interval = "1d", count = 30): Promise<TossCandle[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/toss/candles/${symbol}?interval=${interval}&count=${count}`, {
+      headers: authHeaders({ Accept: "application/json" }),
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data?.result?.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function askStockQuestion(
   ticker: string,
   question: string,
