@@ -93,6 +93,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   useEffect(() => {
+    if (!authenticated) return;
     let firstLoad = true;
     async function loadMacro() {
       if (firstLoad) setMacroLoading(true);
@@ -108,7 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     loadMacro();
     const id = setInterval(loadMacro, 15_000);
     return () => clearInterval(id);
-  }, []);
+  }, [authenticated]);
 
   async function handleTickerSearch(input: string | React.FormEvent) {
     if (typeof input !== "string") {

@@ -46,7 +46,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Accept", "Authorization"],
 )
 
@@ -66,6 +66,8 @@ PUBLIC_PATHS = {"/", "/api/auth/login", "/docs", "/openapi.json", "/redoc"}
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
     if request.url.path in PUBLIC_PATHS or request.url.path.startswith(("/docs/", "/openapi.json", "/redoc")):
         return await call_next(request)
     auth = request.headers.get("Authorization", "")
