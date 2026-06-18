@@ -33,9 +33,18 @@ export function PortfolioPage() {
       const res = await fetch(`${API_BASE}/api/toss/holdings`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        alert(`연동 실패: ${errBody.detail ?? res.statusText}`);
+        return;
+      }
       const data = await res.json();
       // Toss Open API 응답 구조: { result: { items: [...] } }
       const items = data?.result?.items ?? data?.holdings ?? [];
+      if (!items.length) {
+        alert("계좌에 보유 종목이 없습니다. Toss 계좌를 확인해주세요.");
+        return;
+      }
       const mapped: Holding[] = items.map((item: any) => ({
         ticker: item.symbol ?? item.ticker,
         name: item.name ?? "",

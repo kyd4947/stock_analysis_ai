@@ -106,7 +106,40 @@ def get_stock_data(ticker: str) -> dict:
                     s = stocks[ticker]
                     result["name"] = s.get("name") or result["name"]
                     result["sector"] = (s.get("marketCountry") or "") + "/" + (s.get("market") or "")
-                return result  # Toss 성공 (가격+종목명)
+
+                # NAVER 재무지표 보충 (Toss는 PER/PBR/ROE를 제공하지 않음)
+                try:
+                    fa = requests.get(
+                        f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
+                        headers=_NAVER_HEADERS,
+                        timeout=6,
+                    )
+                    if fa.ok:
+                        fi = fa.json().get("financeInfo", {})
+                        titles = fi.get("trTitleList", [])
+                        rows = fi.get("rowList", [])
+                        _current_yr = datetime.now().year
+                        actual_keys = sorted(
+                            [t["key"] for t in titles if t.get("isConsensus", "N") == "N" and int(t["key"][:4]) < _current_yr],
+                            reverse=True,
+                        )
+                        key = actual_keys[0] if actual_keys else None
+                        if key:
+                            for row in rows:
+                                title = row.get("title", "")
+                                raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
+                                if title in ("PER", "PBR", "BPS"):
+                                    val = _num(raw)
+                                    if val is not None:
+                                        result[title.lower()] = round(val, 2)
+                                elif title in ("ROE", "EPS"):
+                                    val = _signed(raw)
+                                    if val is not None:
+                                        result[title.lower()] = round(val, 2)
+                except Exception:
+                    pass
+
+                return result  # Toss 성공 (가격+종목명+재무지표)
         except Exception as e:
             print(f"[Stock] {ticker} Toss error: {e}", flush=True)
 
