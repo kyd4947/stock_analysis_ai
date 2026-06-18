@@ -32,6 +32,82 @@ _NAVER_HEADERS = {
     "Referer": "https://m.stock.naver.com/",
 }
 
+_NAVER_POLLING_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Referer": "https://finance.naver.com/",
+}
+
+
+def _get_naver_realtime_financials(ticker: str) -> dict:
+    """NAVER 실시간 polling API에서 EPS/BPS 조회."""
+    try:
+        r = requests.get(
+            f"https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:{ticker}",
+            headers=_NAVER_POLLING_HEADERS,
+            timeout=6,
+        )
+        if not r.ok:
+            return {}
+        data = r.json()
+        if data.get("resultCode") != "success":
+            return {}
+        areas = data.get("result", {}).get("areas", [])
+        if not areas:
+            return {}
+        item = areas[0].get("datas", [{}])[0]
+        eps = item.get("eps")
+        bps = item.get("bps")
+        result = {}
+        if eps is not None:
+            result["eps"] = float(eps)
+        if bps is not None:
+            result["bps"] = round(float(bps), 2)
+        return result
+    except Exception:
+        return {}
+
+
+def _get_naver_annual_financials(ticker: str) -> dict:
+    """NAVER /finance/annual API에서 EPS/BPS/ROE 조회 (fallback용)."""
+    try:
+        fa = requests.get(
+            f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
+            headers=_NAVER_HEADERS,
+            timeout=6,
+        )
+        if not fa.ok:
+            return {}
+        fi = fa.json().get("financeInfo", {})
+        titles = fi.get("trTitleList", [])
+        rows = fi.get("rowList", [])
+        _current_yr = datetime.now().year
+        actual_keys = sorted(
+            [t["key"] for t in titles if t.get("isConsensus", "N") == "N" and int(t["key"][:4]) < _current_yr],
+            reverse=True,
+        )
+        key = actual_keys[0] if actual_keys else None
+        if not key:
+            return {}
+        result = {}
+        for row in rows:
+            title = row.get("title", "")
+            raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
+            if title in ("BPS",):
+                val = _num(raw)
+                if val is not None:
+                    result["bps"] = round(val, 2)
+            elif title in ("EPS",):
+                val = _signed(raw)
+                if val is not None:
+                    result["eps"] = round(val, 2)
+            elif title in ("ROE",):
+                val = _signed(raw)
+                if val is not None:
+                    result["roe"] = round(val, 2)
+        return result
+    except Exception:
+        return {}
+
 _YAHOO_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
     "Accept": "application/json",
@@ -107,37 +183,25 @@ def get_stock_data(ticker: str) -> dict:
                     result["name"] = s.get("name") or result["name"]
                     result["sector"] = (s.get("marketCountry") or "") + "/" + (s.get("market") or "")
 
-                # NAVER 재무지표 보충 (Toss는 PER/PBR/ROE를 제공하지 않음)
-                try:
-                    fa = requests.get(
-                        f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
-                        headers=_NAVER_HEADERS,
-                        timeout=6,
-                    )
-                    if fa.ok:
-                        fi = fa.json().get("financeInfo", {})
-                        titles = fi.get("trTitleList", [])
-                        rows = fi.get("rowList", [])
-                        _current_yr = datetime.now().year
-                        actual_keys = sorted(
-                            [t["key"] for t in titles if t.get("isConsensus", "N") == "N" and int(t["key"][:4]) < _current_yr],
-                            reverse=True,
-                        )
-                        key = actual_keys[0] if actual_keys else None
-                        if key:
-                            for row in rows:
-                                title = row.get("title", "")
-                                raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
-                                if title in ("PER", "PBR", "BPS"):
-                                    val = _num(raw)
-                                    if val is not None:
-                                        result[title.lower()] = round(val, 2)
-                                elif title in ("ROE", "EPS"):
-                                    val = _signed(raw)
-                                    if val is not None:
-                                        result[title.lower()] = round(val, 2)
-                except Exception:
-                    pass
+                # NAVER 실시간 재무지표 (EPS/BPS → PER/PBR/ROE 계산)
+                fin = _get_naver_realtime_financials(ticker)
+                if not fin.get("eps") or not fin.get("bps"):
+                    fin = _get_naver_annual_financials(ticker)
+                if fin.get("eps"):
+                    result["eps"] = fin["eps"]
+                if fin.get("bps"):
+                    result["bps"] = fin["bps"]
+                if fin.get("roe"):
+                    result["roe"] = fin["roe"]
+                price = result.get("price")
+                eps = result.get("eps")
+                bps = result.get("bps")
+                if price and eps and eps > 0:
+                    result["per"] = round(price / eps, 2)
+                if price and bps and bps > 0:
+                    result["pbr"] = round(price / bps, 2)
+                if eps and bps and bps > 0:
+                    result["roe"] = round(eps / bps * 100, 2)
 
                 return result  # Toss 성공 (가격+종목명+재무지표)
         except Exception as e:
@@ -183,41 +247,25 @@ def get_stock_data(ticker: str) -> dict:
                     "change_value": round(_signed(data.get("compareToPreviousClosePrice")) or 0.0),
                 })
 
-                # 재무지표: /finance/annual (마지막으로 완료된 회계연도 사용)
-                try:
-                    fa = requests.get(
-                        f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
-                        headers=_NAVER_HEADERS,
-                        timeout=6,
-                    )
-                    if fa.ok:
-                        fi = fa.json().get("financeInfo", {})
-                        titles = fi.get("trTitleList", [])
-                        rows = fi.get("rowList", [])
-                        _current_yr = datetime.now().year
-                        actual_keys = sorted(
-                            [
-                                t["key"] for t in titles
-                                if t.get("isConsensus", "N") == "N"
-                                and int(t["key"][:4]) < _current_yr
-                            ],
-                            reverse=True,
-                        )
-                        key = actual_keys[0] if actual_keys else None
-                        if key:
-                            for row in rows:
-                                title = row.get("title", "")
-                                raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
-                                if title in ("PER", "PBR", "BPS"):
-                                    val = _num(raw)
-                                    if val is not None:
-                                        result[title.lower()] = round(val, 2)
-                                elif title in ("ROE", "EPS"):
-                                    val = _signed(raw)
-                                    if val is not None:
-                                        result[title.lower()] = round(val, 2)
-                except Exception:
-                    pass
+                # 재무지표: 실시간 polling API 우선, annual fallback
+                fin = _get_naver_realtime_financials(ticker)
+                if not fin.get("eps") or not fin.get("bps"):
+                    fin = _get_naver_annual_financials(ticker)
+                if fin.get("eps"):
+                    result["eps"] = fin["eps"]
+                if fin.get("bps"):
+                    result["bps"] = fin["bps"]
+                if fin.get("roe"):
+                    result["roe"] = fin["roe"]
+                price = result.get("price")
+                eps = result.get("eps")
+                bps = result.get("bps")
+                if price and eps and eps > 0:
+                    result["per"] = round(price / eps, 2)
+                if price and bps and bps > 0:
+                    result["pbr"] = round(price / bps, 2)
+                if eps and bps and bps > 0:
+                    result["roe"] = round(eps / bps * 100, 2)
 
                 return result  # NAVER 성공
     except Exception as e:
@@ -232,41 +280,11 @@ def get_stock_data(ticker: str) -> dict:
 
 
 def get_naver_financials(ticker: str) -> dict:
-    """NAVER Finance /finance/annual API에서 PER/PBR/ROE/EPS/BPS 조회 (DART 보완용)."""
-    try:
-        r = requests.get(
-            f"https://m.stock.naver.com/api/stock/{ticker}/finance/annual",
-            headers=_NAVER_HEADERS,
-            timeout=8,
-        )
-        if not r.ok:
-            return {}
-        fi = r.json().get("financeInfo", {})
-        titles = fi.get("trTitleList", [])
-        rows = fi.get("rowList", [])
-        _current_yr = datetime.now().year
-        actual_keys = sorted(
-            [t["key"] for t in titles if t.get("isConsensus", "N") == "N" and int(t["key"][:4]) < _current_yr],
-            reverse=True,
-        )
-        if not actual_keys:
-            return {}
-        key = actual_keys[0]
-        result: dict = {}
-        for row in rows:
-            title = row.get("title", "")
-            raw = str(row.get("columns", {}).get(key, {}).get("value") or "").replace(",", "").replace("%", "")
-            if title in ("PER", "PBR", "BPS"):
-                val = _num(raw)
-                if val is not None:
-                    result[title.lower()] = round(val, 2)
-            elif title in ("ROE", "EPS"):
-                val = _signed(raw)
-                if val is not None:
-                    result[title.lower()] = round(val, 2)
-        return result
-    except Exception:
-        return {}
+    """NAVER 실시간 polling API → annual fallback으로 EPS/BPS/ROE 조회."""
+    fin = _get_naver_realtime_financials(ticker)
+    if not fin.get("eps") or not fin.get("bps"):
+        fin = _get_naver_annual_financials(ticker)
+    return fin
 
 
 def get_price_history(ticker: str) -> dict:
