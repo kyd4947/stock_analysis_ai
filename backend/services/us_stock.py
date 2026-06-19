@@ -44,28 +44,31 @@ def get_us_stock_data(ticker: str) -> dict:
     ticker = ticker.upper()
 
     # ── 1차: Toss Securities Open API ─────────────────────────────────────────
-    from backend.services.toss_service import sync_get_prices, sync_get_stocks, _toss_configured
-    if _toss_configured():
-        try:
-            toss_prices = sync_get_prices([ticker])
-            if ticker in toss_prices:
-                p = toss_prices[ticker]
-                name = ticker
-                toss_stocks = sync_get_stocks([ticker])
-                if ticker in toss_stocks:
-                    name = toss_stocks[ticker].get("name") or name
-                print(f"[US Stock] {ticker} Toss OK: ${p['price']}", flush=True)
-                return {
-                    "price": round(p["price"], 2),
-                    "change_val": 0.0,
-                    "change_rate": 0.0,
-                    "positive": True,
-                    "name": name,
-                    "sector": "",
-                    "currency": p.get("currency", "USD"),
-                }
-        except Exception as e:
-            print(f"[US Stock] {ticker} Toss error: {e}", flush=True)
+    try:
+        from backend.services.toss_service import sync_get_prices, sync_get_stocks, _toss_configured
+        if _toss_configured():
+            try:
+                toss_prices = sync_get_prices([ticker])
+                if ticker in toss_prices:
+                    p = toss_prices[ticker]
+                    name = ticker
+                    toss_stocks = sync_get_stocks([ticker])
+                    if ticker in toss_stocks:
+                        name = toss_stocks[ticker].get("name") or name
+                    print(f"[US Stock] {ticker} Toss OK: ${p['price']}", flush=True)
+                    return {
+                        "price": round(p["price"], 2),
+                        "change_val": 0.0,
+                        "change_rate": 0.0,
+                        "positive": True,
+                        "name": name,
+                        "sector": "",
+                        "currency": p.get("currency", "USD"),
+                    }
+            except Exception as e:
+                print(f"[US Stock] {ticker} Toss error: {e}", flush=True)
+    except ImportError:
+        pass
 
     # ── 2차: Yahoo Finance ────────────────────────────────────────────────────
     for base in _BASES:
