@@ -735,7 +735,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-white" />
                   <span className="text-sm font-bold text-white">AI 타점 분석</span>
-                  <span className="text-xs text-slate-400">현재가 {entryExit.current_price.toLocaleString("ko-KR")}원</span>
+                  <span className="text-xs text-slate-400">현재가 {entryExit.currency === "USD" ? "$" + entryExit.current_price.toLocaleString("en-US", {minimumFractionDigits: 2}) : entryExit.current_price.toLocaleString("ko-KR") + "원"}</span>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                   entryExit.confidence === "high"
@@ -752,16 +752,16 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 <div className="p-4">
                   <p className="text-xs font-semibold text-emerald-600">매수 구간</p>
                   <p className="mt-1 text-sm font-bold text-slate-950">
-                    {entryExit.entry_low.toLocaleString("ko-KR")}
+                    {entryExit.currency === "USD" ? "$" + entryExit.entry_low.toLocaleString("en-US", {minimumFractionDigits: 2}) : entryExit.entry_low.toLocaleString("ko-KR")}
                     <span className="mx-1 text-slate-400">~</span>
-                    {entryExit.entry_high.toLocaleString("ko-KR")}
+                    {entryExit.currency === "USD" ? "$" + entryExit.entry_high.toLocaleString("en-US", {minimumFractionDigits: 2}) : entryExit.entry_high.toLocaleString("ko-KR")}
                   </p>
-                  <p className="text-[10px] text-slate-400">원</p>
+                  <p className="text-[10px] text-slate-400">{entryExit.currency === "USD" ? "USD" : "원"}</p>
                 </div>
                 <div className="p-4">
                   <p className="text-xs font-semibold text-blue-600">1차 목표가</p>
                   <p className="mt-1 text-sm font-bold text-slate-950">
-                    {entryExit.target_1.toLocaleString("ko-KR")}
+                    {entryExit.currency === "USD" ? "$" + entryExit.target_1.toLocaleString("en-US", {minimumFractionDigits: 2}) : entryExit.target_1.toLocaleString("ko-KR")}
                   </p>
                   <p className="text-[10px] text-slate-400">
                     +{(((entryExit.target_1 - entryExit.current_price) / entryExit.current_price) * 100).toFixed(1)}%
@@ -772,7 +772,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                   {entryExit.target_2 ? (
                     <>
                       <p className="mt-1 text-sm font-bold text-slate-950">
-                        {entryExit.target_2.toLocaleString("ko-KR")}
+                        {entryExit.currency === "USD" ? "$" + entryExit.target_2.toLocaleString("en-US", {minimumFractionDigits: 2}) : entryExit.target_2.toLocaleString("ko-KR")}
                       </p>
                       <p className="text-[10px] text-slate-400">
                         +{(((entryExit.target_2 - entryExit.current_price) / entryExit.current_price) * 100).toFixed(1)}%
@@ -785,7 +785,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 <div className="p-4">
                   <p className="text-xs font-semibold text-rose-600">손절가</p>
                   <p className="mt-1 text-sm font-bold text-slate-950">
-                    {entryExit.stop_loss.toLocaleString("ko-KR")}
+                    {entryExit.currency === "USD" ? "$" + entryExit.stop_loss.toLocaleString("en-US", {minimumFractionDigits: 2}) : entryExit.stop_loss.toLocaleString("ko-KR")}
                   </p>
                   <p className="text-[10px] text-rose-400">
                     {(((entryExit.stop_loss - entryExit.current_price) / entryExit.current_price) * 100).toFixed(1)}%

@@ -286,6 +286,7 @@ export type EntryExitResult = {
   stop_loss: number;
   basis: string;
   confidence: "high" | "medium" | "low";
+  currency?: "USD" | "KRW";
 };
 
 export async function fetchEntryExit(

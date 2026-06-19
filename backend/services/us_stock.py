@@ -219,6 +219,77 @@ def get_us_stock_financials(ticker: str) -> dict:
     return {}
 
 
+def get_us_price_history(ticker: str) -> dict:
+    """미국 주식 1년 일별 OHLCV 조회 (Yahoo Finance v8 chart)."""
+    for base in _BASES:
+        try:
+            r = requests.get(
+                f"{base}/v8/finance/chart/{ticker}",
+                params={"interval": "1d", "range": "1y"},
+                headers=_HEADERS,
+                timeout=10,
+            )
+            if not r.ok:
+                continue
+            result_list = (r.json().get("chart") or {}).get("result")
+            if not result_list:
+                continue
+            quotes = result_list[0].get("indicators", {}).get("quote", [{}])[0]
+            closes  = quotes.get("close",  [])
+            highs   = quotes.get("high",   [])
+            lows    = quotes.get("low",    [])
+            volumes = quotes.get("volume", [])
+
+            rows = [
+                (c, h, l, v)
+                for c, h, l, v in zip(closes, highs, lows, volumes)
+                if c
+            ]
+            if len(rows) < 5:
+                continue
+
+            cs = [r[0] for r in rows]
+            hs = [r[1] for r in rows]
+            ls = [r[2] for r in rows]
+            vs = [r[3] for r in rows if r[3] and r[3] > 0]
+
+            def _ma(prices, n):
+                return round(sum(prices[-n:]) / n, 2) if len(prices) >= n else None
+
+            high_52w = round(max(hs), 2)
+            low_52w  = round(min(ls), 2)
+            curr = cs[-1]
+            position_52w = round((curr - low_52w) / (high_52w - low_52w) * 100, 1) if high_52w > low_52w else 50.0
+            pct_from_52w_high = round((curr - high_52w) / high_52w * 100, 1)
+
+            curr_vol = vs[-1] if vs else None
+            avg_vol_20 = round(sum(vs[-21:-1]) / 20, 2) if len(vs) >= 21 else None
+            vol_ratio = round(curr_vol / avg_vol_20, 2) if avg_vol_20 and curr_vol else None
+
+            ret_5d  = round((cs[-1] / cs[-6]  - 1) * 100, 2) if len(cs) >= 6  else None
+            ret_20d = round((cs[-1] / cs[-21] - 1) * 100, 2) if len(cs) >= 21 else None
+
+            print(f"[US Price History] {ticker} OK: {len(rows)}days", flush=True)
+            return {
+                "high_52w": high_52w,
+                "low_52w":  low_52w,
+                "position_52w": position_52w,
+                "pct_from_52w_high": pct_from_52w_high,
+                "ma5":  _ma(cs, 5),
+                "ma20": _ma(cs, 20),
+                "ma60": _ma(cs, 60),
+                "curr_vol": curr_vol,
+                "avg_vol_20d": avg_vol_20,
+                "vol_ratio_20d": vol_ratio,
+                "ret_5d":  ret_5d,
+                "ret_20d": ret_20d,
+                "recent_closes": [round(c, 2) for c in cs[-10:]],
+            }
+        except Exception as e:
+            print(f"[US Price History] {ticker} {base} error: {e}", flush=True)
+    return {}
+
+
 def search_us_stocks(query: str, limit: int = 10) -> list[dict]:
     """Yahoo Finance 자동완성 API로 미국 주식 검색."""
     try:

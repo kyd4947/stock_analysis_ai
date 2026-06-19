@@ -380,8 +380,8 @@ def analyze_entry_exit(
     financial: dict,
 ) -> dict:
     """Thinking mode로 매수/매도 타점 분석. 실제 가격 데이터 기반."""
-    h60  = price_history.get("high_60d")
-    l60  = price_history.get("low_60d")
+    h52w = price_history.get("high_52w")
+    l52w = price_history.get("low_52w")
     ma5  = price_history.get("ma5")
     ma20 = price_history.get("ma20")
     ma60 = price_history.get("ma60")
@@ -398,7 +398,7 @@ def analyze_entry_exit(
 
 [현재가 및 기술적 지표 — 실제 데이터]
 현재가: {_p(current_price)}
-60일 고점: {_p(h60)} | 60일 저점: {_p(l60)}
+52주 고점: {_p(h52w)} | 52주 저점: {_p(l52w)}
 5일 이동평균(MA5): {_p(ma5)}
 20일 이동평균(MA20): {_p(ma20)}
 60일 이동평균(MA60): {_p(ma60)}
@@ -416,7 +416,7 @@ USD/KRW: {macro.get('exchange_rate_usdkrw', 'N/A')} | 기준금리: {macro.get('
 [타점 산출 규칙 — 반드시 준수]
 1. 위 실제 숫자들에서만 지지·저항 근거를 찾으세요. 없는 수치를 만들지 마세요.
 2. 매수 구간(entry_low~entry_high): 반드시 현재가 이하의 지지선. MA20·MA60·60일저점 중 현재가에 가장 가까운 지지선 부근으로 설정. 현재가가 MA20보다 10% 이상 위에 있으면 "눌림목 대기" 구간으로 설정하고 basis에 명시.
-3. 1차 목표가(target_1): 반드시 현재가보다 높아야 함. 현재가 위의 저항선(60일 고점 위 또는 직전 고점)을 기준으로 설정. 60일 고점이 현재가와 같거나 낮으면 현재가 × 1.05를 사용.
+3. 1차 목표가(target_1): 반드시 현재가보다 높아야 함. 현재가 위의 저항선(52주 고점 위 또는 직전 고점)을 기준으로 설정. 52주 고점이 현재가와 같거나 낮으면 현재가 × 1.05를 사용.
 4. 2차 목표가(target_2): 1차 목표가보다 높은 다음 저항선. 근거가 없으면 null.
 5. 손절가(stop_loss): 매수 구간 하단에서 1~3% 아래. 단, 현재가 대비 -20% 이내로 제한.
 6. 근거(basis): 사용한 실제 수치를 인용하며 2~3문장. 현재가가 매수 구간보다 크게 위에 있으면 "현재 고점 부근이므로 눌림목 확인 후 진입 권장"을 반드시 포함.
@@ -460,6 +460,97 @@ JSON만 응답. 마크다운 금지.
         return result
     except Exception as e:
         print(f"[Gemini] entry_exit {ticker} parse error: {e}", flush=True)
+        return {"error": "응답 파싱 중 오류가 발생했습니다."}
+
+
+def analyze_entry_exit_us_stock(
+    ticker: str,
+    current_price: float,
+    price_history: dict,
+    news_articles: list[dict],
+    macro: dict,
+    financial: dict,
+) -> dict:
+    """Thinking mode로 미국 주식 매수/매도 타점 분석. USD 가격 기반."""
+    h52w = price_history.get("high_52w")
+    l52w = price_history.get("low_52w")
+    ma5  = price_history.get("ma5")
+    ma20 = price_history.get("ma20")
+    ma60 = price_history.get("ma60")
+    recent = price_history.get("recent_closes", [])
+
+    def _p(v):
+        return f"${v:,.2f}" if v else "N/A"
+
+    recent_str = " → ".join(f"${c:,.2f}" for c in recent) if recent else "N/A"
+    news_text  = "\n".join(f"- {a['title']}" for a in news_articles[:5]) or "N/A"
+
+    prompt = f"""You are a US stock technical analysis AI specialist.
+Based ONLY on the actual data below, calculate entry/exit price levels for {ticker}.
+
+[Current Price & Technical Indicators — Actual Data]
+Current Price: {_p(current_price)}
+52-Week High: {_p(h52w)} | 52-Week Low: {_p(l52w)}
+MA5: {_p(ma5)}
+MA20: {_p(ma20)}
+MA60: {_p(ma60)}
+Last 10 Closes: {recent_str}
+
+[Financials]
+PER: {financial.get('per') or 'N/A'} | PBR: {financial.get('pbr') or 'N/A'} | ROE: {financial.get('roe') or 'N/A'}%
+
+[Macro]
+USD/KRW: {macro.get('exchange_rate_usdkrw', 'N/A')} | Fed Rate: {macro.get('fed_funds_rate') or macro.get('policy_rate', 'N/A')}%
+
+[Recent News]
+{news_text}
+
+[Entry/Exit Calculation Rules — Follow Strictly]
+1. Use ONLY the actual numbers above for support/resistance reasoning.
+2. Entry zone (entry_low~entry_high): MUST be at or below current price. Pick the closest support level near MA20, MA60, or 60-day low. If current price is 10%+ above MA20, set a "pullback wait" zone and note it in basis.
+3. Target 1 (target_1): MUST be above current price. Use resistance above current price (above 52-week high or previous high). If 52-week high <= current price, use current_price × 1.05.
+4. Target 2 (target_2): Next resistance above target 1. null if no basis.
+5. Stop Loss (stop_loss): 1~3% below entry zone low, but no more than -20% from current price.
+6. Basis: 2~3 sentences citing actual numbers used. If current price is well above entry zone, include "Currently near highs, recommend waiting for pullback confirmation."
+7. Confidence: high/medium/low based on data reliability.
+
+JSON only. No markdown.
+{{"entry_low": number, "entry_high": number, "target_1": number, "target_2": number or null, "stop_loss": number, "basis": "reasoning", "confidence": "high|medium|low"}}"""
+
+    text = None
+    try:
+        from google.genai import types as _gt
+        client = _client()
+        resp = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=_gt.GenerateContentConfig(
+                thinking_config=_gt.ThinkingConfig(thinking_budget=8000)
+            ),
+        )
+        text = resp.text.strip()
+        print(f"[Gemini] entry_exit_us {ticker} thinking mode OK", flush=True)
+    except Exception as e:
+        print(f"[Gemini] entry_exit_us {ticker} thinking failed ({e}), fallback", flush=True)
+
+    if text is None:
+        try:
+            text = _generate(prompt)
+        except Exception as e:
+            print(f"[Gemini] entry_exit_us {ticker} fallback error: {e}", flush=True)
+            return {"error": "타점 분석 중 오류가 발생했습니다."}
+
+    try:
+        text = re.sub(r"```(?:json)?\s*", "", text)
+        text = re.sub(r"```", "", text).strip()
+        s, e2 = text.find("{"), text.rfind("}")
+        if s != -1 and e2 > s:
+            text = text[s : e2 + 1]
+        result = json.loads(text)
+        result["current_price"] = round(current_price, 2)
+        return result
+    except Exception as e:
+        print(f"[Gemini] entry_exit_us {ticker} parse error: {e}", flush=True)
         return {"error": "응답 파싱 중 오류가 발생했습니다."}
 
 
