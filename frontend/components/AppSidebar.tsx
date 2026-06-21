@@ -260,7 +260,7 @@ export function AppSidebar({
 
       <aside
         className={cn(
-          "flex h-screen shrink-0 flex-col border-r border-slate-200 bg-slate-50/95 shadow-[1px_0_0_rgba(15,23,42,0.03)] transition-all duration-200",
+          "flex h-screen shrink-0 flex-col border-r border-slate-200 bg-slate-50/95 shadow-[1px_0_0_rgba(15,23,42,0.03)] transition-all duration-200 overflow-y-auto",
           // 모바일: 오버레이 드로어
           "fixed inset-y-0 left-0 z-50 lg:static lg:z-auto",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
