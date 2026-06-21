@@ -214,7 +214,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko" className="h-full">
       <body className="h-full overflow-hidden bg-slate-100 text-slate-950 antialiased">
-        <div className="flex h-screen w-screen overflow-hidden">
+        <div className="flex h-[100dvh] w-full overflow-hidden">
           <AppSidebar
             collapsed={collapsed}
             onToggleCollapse={() => setCollapsed((v) => !v)}
