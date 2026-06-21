@@ -92,3 +92,21 @@
   border: 2px solid transparent;
   background-clip: content-box;
 }
+
+/* ── 모바일 터치 최적화 ── */
+@media (hover: none) and (pointer: coarse) {
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+  }
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* ── 스크롤바 숨김 (모바일) ── */
+@media (max-width: 640px) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}

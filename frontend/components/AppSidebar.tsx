@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Activity,
   BarChart3,
@@ -10,6 +10,7 @@ import {
   Landmark,
   LineChart,
   Loader2,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -19,6 +20,7 @@ import {
   TrendingDown,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,8 @@ type AppSidebarProps = {
   macro: MacroSnapshot | null;
   macroLoading: boolean;
   macroError?: boolean;
+  mobileOpen: boolean;
+  onMobileToggle: () => void;
 };
 
 const NAV_ITEMS: { id: NavItem; label: string; helper: string; icon: React.ElementType }[] = [
@@ -223,14 +227,46 @@ export function AppSidebar({
   macro,
   macroLoading,
   macroError,
+  mobileOpen,
+  onMobileToggle,
 }: AppSidebarProps) {
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
   return (
-    <aside
-      className={cn(
-        "flex h-screen shrink-0 flex-col border-r border-slate-200 bg-slate-50/95 shadow-[1px_0_0_rgba(15,23,42,0.03)] transition-[width] duration-200",
-        collapsed ? "w-[72px]" : "w-[292px]"
+    <>
+      {/* 모바일 오버레이 배경 */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onMobileToggle}
+        />
       )}
-    >
+
+      {/* 모바일 토글 버튼 (항상 상단에) */}
+      <button
+        type="button"
+        onClick={onMobileToggle}
+        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm lg:hidden"
+      >
+        {mobileOpen ? <X className="h-5 w-5 text-slate-600" /> : <Menu className="h-5 w-5 text-slate-600" />}
+      </button>
+
+      <aside
+        className={cn(
+          "flex h-screen shrink-0 flex-col border-r border-slate-200 bg-slate-50/95 shadow-[1px_0_0_rgba(15,23,42,0.03)] transition-all duration-200",
+          // 모바일: 오버레이 드로어
+          "fixed inset-y-0 left-0 z-50 lg:static lg:z-auto",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          collapsed ? "w-[72px]" : "w-[292px]"
+        )}
+      >
       <button
         type="button"
         onClick={() => onLogoClick ? onLogoClick() : onNavChange("analysis")}
@@ -339,6 +375,7 @@ export function AppSidebar({
         </div>
       )}
     </aside>
+    </>
   );
 }
 

@@ -63,22 +63,20 @@ export function PortfolioPage() {
 
   return (
     <div className="min-h-full bg-slate-100">
-      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 px-6 py-5">
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6">
 
-        <header className="border-b border-slate-200 pb-5">
+        <header className="border-b border-slate-200 pb-4 sm:pb-5">
           <div className="mb-2 flex items-center gap-2">
             <Badge className="border-0 bg-slate-950 text-white">내 포트폴리오</Badge>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">보유 종목 현황</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">보유 종목 현황</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            {isConnected 
-              ? "Toss 계좌와 성공적으로 연결되었습니다. AI가 종목을 분석합니다." 
-              : "Toss 계좌를 연동하면 실제 보유 종목을 기반으로 AI 분석을 자동 실행합니다."}
+            Toss 계좌를 연동하면 실제 보유 종목을 기반으로 AI 분석을 자동 실행합니다.
           </p>
         </header>
 
         {/* 연동 상태 섹션 */}
-        <div className="flex flex-col items-center gap-5 rounded-lg border border-slate-200 bg-white py-14 shadow-sm">
+        <div className="flex flex-col items-center gap-5 rounded-lg border border-slate-200 bg-white px-4 py-10 shadow-sm sm:px-0 sm:py-14">
           <div className={`flex h-16 w-16 items-center justify-center rounded-full ${isConnected ? "bg-emerald-100" : "bg-slate-100"}`}>
             {isConnected 
               ? <CheckCircle2 className="h-8 w-8 text-emerald-600" />

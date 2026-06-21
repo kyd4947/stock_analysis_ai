@@ -80,13 +80,13 @@ export function WatchlistPage() {
 
   return (
     <div className="min-h-full bg-slate-100">
-      <div className="mx-auto flex w-full max-w-[860px] flex-col gap-6 px-6 py-5">
+      <div className="mx-auto flex w-full max-w-[860px] flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6">
 
-        <header className="border-b border-slate-200 pb-5">
+        <header className="border-b border-slate-200 pb-4 sm:pb-5">
           <div className="mb-2 flex items-center gap-2">
             <Badge className="border-0 bg-slate-950 text-white">관심 종목</Badge>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">내 관심 종목</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">내 관심 종목</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             추적하고 싶은 종목을 저장하고 원클릭으로 AI 분석을 실행합니다.
           </p>
@@ -101,7 +101,7 @@ export function WatchlistPage() {
         />
 
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-20 shadow-sm">
+          <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-14 shadow-sm sm:py-20">
             <Star className="h-10 w-10 text-slate-300" />
             <p className="text-sm font-semibold text-slate-500">관심 종목이 없습니다</p>
             <p className="text-xs text-slate-400">위에서 종목 코드를 입력해 추가하세요.</p>
@@ -185,7 +185,7 @@ export function WatchlistPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeTicker(item.ticker)}
-                      className="h-8 w-8 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                      className="h-8 w-8 shrink-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

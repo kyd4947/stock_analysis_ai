@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   BarChart3,
   BrainCircuit,
+  ChevronDown,
   ChevronRight,
   ExternalLink,
   Info,
@@ -152,6 +153,26 @@ function SignalBadge({ signal, reason }: { signal?: string; reason?: string }) {
         {reason && <p className="text-sm text-slate-600">{reason}</p>}
       </div>
     </div>
+  );
+}
+
+function CollapsibleSection({ title, icon: Icon, defaultOpen = true, children }: { title: string; icon: React.ElementType; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(defaultOpen);
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 sm:pointer-events-none sm:cursor-default"
+      >
+        <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700">
+          <Icon className="h-4 w-4 shrink-0" />
+          {title}
+        </h3>
+        <ChevronDown className={`h-4 w-4 text-slate-400 sm:hidden transition-transform ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </section>
   );
 }
 
@@ -358,15 +379,15 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
   return (
     <Card className="rounded-lg border-slate-200 shadow-sm">
       <CardHeader className="pb-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {item.name && (
-                <CardTitle className="truncate text-2xl font-bold tracking-tight text-slate-950">
+                <CardTitle className="truncate text-lg font-bold tracking-tight text-slate-950 sm:text-2xl">
                   {item.name}
                 </CardTitle>
               )}
-              <span className={`font-semibold ${item.name ? "text-base text-slate-400" : "text-2xl font-bold text-slate-950"}`}>
+              <span className={`font-semibold ${item.name ? "text-sm text-slate-400 sm:text-base" : "text-lg sm:text-2xl font-bold text-slate-950"}`}>
                 {item.ticker}
               </span>
               <a
@@ -383,8 +404,8 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
               {item.sector || "종목 정보"}
             </CardDescription>
           </div>
-          <div className="shrink-0 text-right">
-            <div className="flex items-baseline justify-end gap-1 text-2xl font-bold text-slate-950">
+          <div className="shrink-0 sm:text-right">
+            <div className="flex items-baseline gap-1 text-xl font-bold text-slate-950 sm:justify-end sm:text-2xl">
               {item.price?.toLocaleString("ko-KR") ?? "-"}
               <span className="text-sm font-medium text-slate-400">원</span>
             </div>
@@ -449,11 +470,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
 
         {/* 재무 지표 */}
         {item.financial && (
-          <section>
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
-              <Info className="h-4 w-4" />
-              재무 지표
-            </h3>
+          <CollapsibleSection title="재무 지표" icon={Info}>
             <div className="grid grid-cols-3 gap-3">
               {[
                 { label: "PER", value: item.financial.per ? `${item.financial.per}배` : "-" },
@@ -466,16 +483,12 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 </div>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* 거시경제 지표 */}
         {item.macro && (
-          <section>
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
-              <BarChart3 className="h-4 w-4" />
-              거시경제 지표
-            </h3>
+          <CollapsibleSection title="거시경제 지표" icon={BarChart3}>
             <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 sm:grid-cols-4">
               <div className="rounded-lg bg-slate-50 p-3">
                 <p className="text-xs text-slate-400">USD/KRW</p>
@@ -504,16 +517,12 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 </div>
               )}
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* DART 리스크 공시 */}
         {item.dart.risk_flags.length > 0 && (
-          <section>
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-rose-700">
-              <Info className="h-4 w-4" />
-              DART 리스크 공시
-            </h3>
+          <CollapsibleSection title="DART 리스크 공시" icon={Info}>
             <div className="flex flex-wrap gap-2">
               {item.dart.risk_flags.map((flag) => (
                 <Badge
@@ -525,16 +534,12 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 </Badge>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* 뉴스 */}
         {item.news?.articles && item.news.articles.length > 0 && (
-          <section>
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
-              <Newspaper className="h-4 w-4" />
-              관련 뉴스
-            </h3>
+          <CollapsibleSection title="관련 뉴스" icon={Newspaper}>
             <div className="space-y-2">
               {item.news.articles.slice(0, 4).map((article, i) => (
                 <a
@@ -554,16 +559,12 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 </a>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* 주요 주주 */}
         {item.shareholders && item.shareholders.length > 0 && (
-          <section>
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-700">
-              <Users className="h-4 w-4" />
-              주요 주주
-            </h3>
+          <CollapsibleSection title="주요 주주" icon={Users}>
             <div className="space-y-2">
               {item.shareholders.slice(0, 5).map((s, i) => (
                 <div
@@ -575,16 +576,12 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 </div>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* ── Toss 시장 데이터 ────────────────────────────────────────────── */}
         {!tossLoading && (
-          <section className="border-t border-slate-100 pt-4 space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700">
-              <BarChart3 className="h-4 w-4" />
-              Toss 시장 데이터
-            </h3>
+          <CollapsibleSection title="Toss 시장 데이터" icon={BarChart3}>
 
             {/* 상/하한가 */}
             {priceLimit && (
@@ -707,7 +704,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 </div>
               </div>
             )}
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* 타점 분석 */}

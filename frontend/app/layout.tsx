@@ -5,7 +5,6 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { LoginPage } from "@/components/LoginPage";
 import type { NavItem } from "@/components/AppSidebar";
 import { fetchMacro, screenStocks } from "@/lib/api";
-
 import type { MacroSnapshot, ScreenResponse } from "@/lib/api";
 import "./globals.css";
 
@@ -58,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [authenticated, setAuthenticated] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [activeNav, setActiveNavState] = useState<NavItem>("analysis");
   const [searchLoading, setSearchLoading] = useState(false);
   const [macro, setMacro] = useState<MacroSnapshot | null>(null);
@@ -65,6 +65,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     setAuthChecked(true);
+    document.title = "Stock Analysis AI — 거시경제 기반 투자 분석";
+    const meta = document.createElement("meta");
+    meta.name = "apple-mobile-web-app-capable";
+    meta.content = "yes";
+    document.head.appendChild(meta);
+    const statusMeta = document.createElement("meta");
+    statusMeta.name = "apple-mobile-web-app-status-bar-style";
+    statusMeta.content = "black-translucent";
+    document.head.appendChild(statusMeta);
   }, []);
 
   const [screenResult, setScreenResult] = useState<ScreenResponse | null>(null);
@@ -89,6 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   function setActiveNav(nav: NavItem) {
     setActiveNavState(nav);
     localStorage.setItem("active_nav", nav);
+    setMobileOpen(false);
   }
 
   useEffect(() => {
@@ -215,6 +225,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             searchLoading={searchLoading}
             macro={macro}
             macroLoading={macroLoading}
+            mobileOpen={mobileOpen}
+            onMobileToggle={() => setMobileOpen((v) => !v)}
           />
           <SearchContext.Provider
             value={{
@@ -233,7 +245,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               macroLoading,
             }}
           >
-            <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+            <main className="min-w-0 flex-1 overflow-y-auto pt-14 lg:pt-0">{children}</main>
           </SearchContext.Provider>
         </div>
       </body>

@@ -67,13 +67,13 @@ export function ProfilePage() {
 
   return (
     <div className="min-h-full bg-slate-100">
-      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 px-6 py-5">
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6">
 
-        <header className="border-b border-slate-200 pb-5">
+        <header className="border-b border-slate-200 pb-4 sm:pb-5">
           <div className="mb-2 flex items-center gap-2">
             <Badge className="border-0 bg-slate-950 text-white">투자 프로필</Badge>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">나의 투자 성향</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">나의 투자 성향</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             설정한 투자 성향이 AI 분석 점수와 종목 추천에 반영됩니다.
           </p>
@@ -86,7 +86,7 @@ export function ProfilePage() {
               <ShieldCheck className="h-5 w-5 text-slate-700" />
               리스크 허용도
             </h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
               {RISK_OPTIONS.map((opt) => {
                 const active = local.risk_tolerance === opt.id;
                 return (
@@ -95,7 +95,7 @@ export function ProfilePage() {
                     type="button"
                     onClick={() => setLocal((p) => ({ ...p, risk_tolerance: opt.id }))}
                     className={cn(
-                      "rounded-lg border p-4 text-left transition-colors",
+                      "rounded-lg border p-3 text-left transition-colors sm:p-4",
                       active
                         ? "border-slate-950 bg-slate-950 text-white shadow-sm"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -161,7 +161,7 @@ export function ProfilePage() {
               <Clock className="h-5 w-5 text-slate-700" />
               투자 기간
             </h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
               {HORIZON_OPTIONS.map((opt) => {
                 const active = local.horizon === opt.id;
                 return (
@@ -170,7 +170,7 @@ export function ProfilePage() {
                     type="button"
                     onClick={() => setLocal((p) => ({ ...p, horizon: opt.id }))}
                     className={cn(
-                      "rounded-lg border p-4 text-left transition-colors",
+                      "rounded-lg border p-3 text-left transition-colors sm:p-4",
                       active
                         ? "border-slate-950 bg-slate-950 text-white shadow-sm"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"

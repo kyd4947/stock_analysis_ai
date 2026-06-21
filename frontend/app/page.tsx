@@ -316,14 +316,14 @@ export default function Page() {
 
   return (
     <div className="min-h-full bg-slate-100">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-6 py-5 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 lg:px-8">
 
         {/* ── 헤더 ── */}
-        <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-center lg:justify-between">
+        <header className="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="mb-2 flex items-center gap-2">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               <Badge className="border-0 bg-slate-950 text-white">AI 투자 분석</Badge>
-              <span className="flex items-center gap-1.5 text-sm font-medium text-slate-500">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 sm:text-sm">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
@@ -331,7 +331,7 @@ export default function Page() {
                 실시간 시장 컨텍스트 반영
               </span>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-950">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
               {hasResult && lastTicker ? `${lastTicker} 종목 AI 분석` : "오늘의 투자 대시보드"}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
@@ -354,9 +354,9 @@ export default function Page() {
         {/* ── 시장 지수 카드 ── */}
         <div className="space-y-2">
           {/* 한국 지수 */}
-          <section className="grid gap-3 md:grid-cols-3">
+          <section className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
             {marketCards.map((card) => (
-              <div key={card.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <div key={card.label} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-slate-500">{card.label}</span>
                   {card.change !== "—" && (
@@ -366,14 +366,14 @@ export default function Page() {
                     </span>
                   )}
                 </div>
-                <p className="mt-4 text-2xl font-bold text-slate-950">{card.value}</p>
+                <p className="mt-3 text-xl font-bold text-slate-950 sm:text-2xl">{card.value}</p>
               </div>
             ))}
           </section>
           {/* 미국 지수 */}
-          <section className="grid gap-3 md:grid-cols-3">
+          <section className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
             {usMarketCards.map((card) => (
-              <div key={card.label} className="rounded-lg border border-slate-100 bg-slate-50 p-4 shadow-sm">
+              <div key={card.label} className="rounded-lg border border-slate-100 bg-slate-50 p-3 shadow-sm sm:p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-400">{card.label}</span>
                   {card.change !== "—" && (
@@ -383,7 +383,7 @@ export default function Page() {
                     </span>
                   )}
                 </div>
-                <p className="mt-3 text-xl font-bold text-slate-700">{card.value}</p>
+                <p className="mt-3 text-lg font-bold text-slate-700 sm:text-xl">{card.value}</p>
               </div>
             ))}
           </section>
@@ -435,7 +435,7 @@ export default function Page() {
 
         {/* ── 기본 대시보드 (검색 전) ── */}
         {showDashboard && (
-          <main className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <main className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
             <section className="space-y-6">
               <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
@@ -528,8 +528,8 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-4">
+              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h2 className="flex items-center gap-2 text-base font-bold text-slate-950">
                       <MessageSquare className="h-5 w-5 text-slate-700" />
@@ -542,7 +542,7 @@ export default function Page() {
                   <Button
                     onClick={handleRecommend}
                     disabled={recommendLoading}
-                    className="shrink-0 bg-slate-950 text-white hover:bg-slate-800 disabled:opacity-60"
+                    className="w-full shrink-0 bg-slate-950 text-white hover:bg-slate-800 disabled:opacity-60 sm:w-auto"
                   >
                     {recommendLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
