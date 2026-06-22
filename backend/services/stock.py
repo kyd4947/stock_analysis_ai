@@ -183,6 +183,21 @@ def get_stock_data(ticker: str) -> dict:
                     result["name"] = s.get("name") or result["name"]
                     result["sector"] = (s.get("marketCountry") or "") + "/" + (s.get("market") or "")
 
+                # Naver API로 회사명 덮어쓰기 (Toss가 잘못된 이름 반환하는 케이스 대응)
+                try:
+                    nr = requests.get(
+                        f"https://m.stock.naver.com/api/stock/{ticker}/basic",
+                        headers=_NAVER_HEADERS,
+                        timeout=5,
+                    )
+                    if nr.ok:
+                        nd = nr.json()
+                        naver_name = nd.get("stockName")
+                        if naver_name:
+                            result["name"] = naver_name
+                except Exception:
+                    pass
+
                 # NAVER 실시간 재무지표 (EPS/BPS → PER/PBR/ROE 계산)
                 fin = _get_naver_realtime_financials(ticker)
                 if not fin.get("eps") or not fin.get("bps"):

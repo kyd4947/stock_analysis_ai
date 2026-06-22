@@ -247,6 +247,7 @@ async def _process_ticker(
             investor_trend=investor_trend,
             earnings_info=earnings_info,
             shareholders=shareholders,
+            company_name=stock.get("name"),
         ),
     )
 

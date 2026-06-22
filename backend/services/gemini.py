@@ -75,6 +75,7 @@ def analyze_stock(
     investor_trend: dict | None = None,
     earnings_info: dict | None = None,
     shareholders: list[dict] | None = None,
+    company_name: str | None = None,
 ) -> dict:
     style = ", ".join(_STYLE_MAP.get(s, s) for s in user_profile.get("preferred_style", []))
     horizon = _HORIZON_MAP.get(user_profile.get("horizon", "mid"), "중기")
@@ -154,7 +155,8 @@ def analyze_stock(
     if shareholders:
         sh_text = ", ".join(f"{s['name']} {s['share']}주" for s in shareholders[:3] if s.get("name"))
 
-    prompt = f"""당신은 한국 주식 투자 AI 애널리스트입니다. 아래 데이터를 종합하여 {ticker} 종목을 분석하세요.
+    label = company_name or ticker
+    prompt = f"""당신은 한국 주식 투자 AI 애널리스트입니다. 아래 데이터를 종합하여 {label}({ticker}) 종목을 분석하세요.
 
 [투자자 프로필]
 리스크 선호: {risk} | 투자 스타일: {style or "없음"} | 투자 기간: {horizon}
