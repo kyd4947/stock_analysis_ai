@@ -236,7 +236,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
   const contextSummary = [
     `종목: ${item.ticker}`,
     item.price ? `현재가: ${item.price.toLocaleString("ko-KR")}원` : null,
-    item.change_rate !== undefined ? `당일변동: ${item.change_rate}%` : null,
+    item.change_rate != null ? `당일변동: ${item.change_rate}%` : null,
     `AI 점수: ${scorePercent}점 (${score.label})`,
     item.sector ? `섹터: ${item.sector}` : null,
     `PER: ${item.financial.per ?? "-"}, PBR: ${item.financial.pbr ?? "-"}, ROE: ${item.financial.roe ?? "-"}%`,
@@ -409,7 +409,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
               {item.price?.toLocaleString("ko-KR") ?? "-"}
               <span className="text-sm font-medium text-slate-400">원</span>
             </div>
-            {item.change_rate !== undefined && (
+            {item.change_rate != null && (
               <div
                 className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
                   isPositive ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
@@ -584,25 +584,25 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
           <CollapsibleSection title="Toss 시장 데이터" icon={BarChart3}>
 
             {/* 상/하한가 */}
-            {priceLimit && (
+            {priceLimit?.upperLimit && (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
                     <p className="text-[10px] font-semibold text-rose-500">상한가</p>
                     <p className="mt-0.5 text-sm font-bold text-slate-900">
-                      {priceLimit.upperLimit.toLocaleString("ko-KR")}
+                      {priceLimit.upperLimit?.toLocaleString("ko-KR") ?? "-"}
                     </p>
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold text-slate-400">기준가</p>
                     <p className="mt-0.5 text-sm font-bold text-slate-900">
-                      {priceLimit.basePrice.toLocaleString("ko-KR")}
+                      {priceLimit.basePrice?.toLocaleString("ko-KR") ?? "-"}
                     </p>
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold text-blue-500">하한가</p>
                     <p className="mt-0.5 text-sm font-bold text-slate-900">
-                      {priceLimit.lowerLimit.toLocaleString("ko-KR")}
+                      {priceLimit.lowerLimit?.toLocaleString("ko-KR") ?? "-"}
                     </p>
                   </div>
                 </div>
@@ -634,10 +634,10 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                     const bid = orderbook.bids[i];
                     return (
                       <div key={i} className="flex justify-between text-slate-700">
-                        <span className="text-blue-600 font-medium">{ask.price.toLocaleString("ko-KR")}</span>
-                        <span className="text-slate-500">{ask.quantity.toLocaleString()}</span>
-                        <span className="text-rose-600 font-medium">{bid ? bid.price.toLocaleString("ko-KR") : "-"}</span>
-                        <span className="text-slate-500">{bid ? bid.quantity.toLocaleString() : "-"}</span>
+                        <span className="text-blue-600 font-medium">{ask.price?.toLocaleString("ko-KR") ?? "-"}</span>
+                        <span className="text-slate-500">{ask.quantity?.toLocaleString() ?? "-"}</span>
+                        <span className="text-rose-600 font-medium">{bid?.price?.toLocaleString("ko-KR") ?? "-"}</span>
+                        <span className="text-slate-500">{bid?.quantity?.toLocaleString() ?? "-"}</span>
                       </div>
                     );
                   })}
@@ -662,9 +662,9 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                       {trades.slice(0, 15).map((t, i) => (
                         <tr key={i} className="border-t border-slate-100">
                           <td className={`px-2 py-1 font-medium ${t.side === "BUY" ? "text-rose-600" : "text-blue-600"}`}>
-                            {t.price.toLocaleString("ko-KR")}
+                            {t.price?.toLocaleString("ko-KR") ?? "-"}
                           </td>
-                          <td className="px-2 py-1 text-right text-slate-600">{t.quantity.toLocaleString()}</td>
+                          <td className="px-2 py-1 text-right text-slate-600">{t.quantity?.toLocaleString() ?? "-"}</td>
                           <td className="px-2 py-1 text-right text-slate-400">
                             {t.side === "BUY" ? "매수" : "매도"}
                           </td>

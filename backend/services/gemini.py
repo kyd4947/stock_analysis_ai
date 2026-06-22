@@ -11,10 +11,10 @@ from backend.core.config import settings
 
 _MODELS = [
     "gemini-2.5-flash",       # 20/day — 최고 품질
-    "gemini-3.5-flash",       # 20/day
-    "gemini-3.1-flash-lite",  # 500/day — 가장 여유 있음
-    "gemini-2.5-flash-lite",  # 20/day
-    "gemini-2.0-flash-lite",  # 20/day
+    "gemini-2.5-pro",         # 20/day
+    "gemini-2.0-flash",       # 높은 할당량
+    "gemini-2.0-flash-lite",  # 높은 할당량
+    "gemini-1.5-flash",       # 높은 할당량
 ]
 
 _STYLE_MAP = {
@@ -36,6 +36,20 @@ def _client() -> genai.Client:
     )
 
 
+def _safety_settings():
+    from google.genai import types as _gt
+    return [
+        _gt.SafetySetting(category=c, threshold="BLOCK_ONLY_HIGH")
+        for c in [
+            "HARM_CATEGORY_HARASSMENT",
+            "HARM_CATEGORY_HATE_SPEECH",
+            "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "HARM_CATEGORY_CIVIC_INTEGRITY",
+        ]
+    ]
+
+
 def _generate(prompt: str) -> str:
     """모델 fallback 포함 텍스트 생성. 모든 오류에서 다음 모델 시도."""
     if not settings.GEMINI_API_KEY:
@@ -44,7 +58,14 @@ def _generate(prompt: str) -> str:
     last_err: Exception | None = None
     for model in _MODELS:
         try:
-            response = client.models.generate_content(model=model, contents=prompt)
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config={"safety_settings": _safety_settings()},
+            )
+            if response.text is None:
+                feedback = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
+                raise RuntimeError(f"응답 없음 (finish_reason: {feedback})")
             return response.text.strip()
         except Exception as e:
             err_str = str(e)
@@ -55,6 +76,8 @@ def _generate(prompt: str) -> str:
             elif "503" in err_str or "unavailable" in err_str.lower():
                 print(f"[Gemini] {model} 일시적 과부하 → 다음 모델로", flush=True)
                 time.sleep(2)
+            elif "SAFETY" in err_str or "finish_reason" in err_str:
+                print(f"[Gemini] {model} safety filter 차단 → 다음 모델로", flush=True)
             continue
     raise RuntimeError(f"모든 Gemini 모델 오류: {last_err}")
 
