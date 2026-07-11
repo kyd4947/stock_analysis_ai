@@ -334,7 +334,7 @@ def get_dart_financials(ticker: str) -> dict:
     if not data:
         return {}
 
-    net_income = equity = eps = bps = None
+    net_income = equity = eps = bps = revenue = operating_income = total_liabilities = dividend = None
     for item in data.get("list", []):
         nm = item.get("account_nm", "").strip()
         raw = (item.get("thstrm_amount") or "").replace(",", "").strip()
@@ -351,6 +351,14 @@ def get_dart_financials(ticker: str) -> dict:
             eps = val
         elif "주당순자산" in nm and bps is None:
             bps = val
+        elif nm in ("매출액", "수익(매출액)", "연결매출액") and revenue is None:
+            revenue = val
+        elif nm in ("영업이익", "영업이익(손실)", "연결영업이익") and operating_income is None:
+            operating_income = val
+        elif nm in ("부채총계", "총부채") and total_liabilities is None:
+            total_liabilities = val
+        elif ("주당배당금" in nm or "배당금" in nm) and dividend is None:
+            dividend = val
 
     result: dict = {}
     if net_income is not None and equity and equity > 0:
@@ -359,6 +367,14 @@ def get_dart_financials(ticker: str) -> dict:
         result["eps"] = eps
     if bps is not None and bps > 0:
         result["bps"] = bps
+    if revenue is not None:
+        result["revenue"] = revenue
+    if operating_income is not None:
+        result["operating_income"] = operating_income
+    if total_liabilities is not None and equity and equity > 0:
+        result["debt_ratio"] = round(total_liabilities / equity * 100, 2)
+    if dividend is not None and dividend > 0:
+        result["dividend_per_share"] = dividend
     return result
 
 

@@ -36,6 +36,8 @@ export type StockScreenResult = {
     per: number | null;
     pbr: number | null;
     roe: number | null;
+    debt_ratio?: number | null;
+    dividend_yield?: number | null;
   };
   dart: {
     risk_flags: string[];
@@ -63,6 +65,10 @@ export type StockScreenResult = {
     ret_5d?: number;
     ret_20d?: number;
     recent_closes?: number[];
+    rsi?: number | null;
+    macd?: { macd: number; signal: number; histogram: number } | null;
+    stochastic?: { k: number; d: number } | null;
+    bollinger?: { upper: number; middle: number; lower: number; bandwidth: number; position: number } | null;
   };
 };
 

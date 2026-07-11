@@ -230,7 +230,12 @@ async def _process_ticker(
         "per": per,
         "pbr": pbr,
         "roe": roe,
+        "debt_ratio": dart_fin.get("debt_ratio"),
+        "dividend_yield": None,
     }
+    # 배당수익률 계산: 배당금/현재가 * 100
+    if dart_fin.get("dividend_per_share") and price and price > 0:
+        financial["dividend_yield"] = round(dart_fin["dividend_per_share"] / price * 100, 2)
 
     analysis = await loop.run_in_executor(
         None,
