@@ -243,6 +243,82 @@ def get_naver_financials(ticker: str) -> dict:
     return fin
 
 
+def _compute_rsi(closes: list[float], period: int = 14) -> float | None:
+    """RSI (상대강도지수) 계산."""
+    if len(closes) < period + 1:
+        return None
+    gains, losses = [], []
+    for i in range(1, len(closes)):
+        diff = closes[i] - closes[i - 1]
+        gains.append(max(diff, 0))
+        losses.append(max(-diff, 0))
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return round(100 - 100 / (1 + rs), 2)
+
+
+def _compute_macd(closes: list[float]) -> dict | None:
+    """MACD (12/26/9) 계산."""
+    if len(closes) < 35:
+        return None
+
+    def _ema(data: list[float], n: int) -> list[float]:
+        k = 2 / (n + 1)
+        ema = [data[0]]
+        for i in range(1, len(data)):
+            ema.append(data[i] * k + ema[-1] * (1 - k))
+        return ema
+
+    ema12 = _ema(closes, 12)
+    ema26 = _ema(closes, 26)
+    macd_line = [a - b for a, b in zip(ema12, ema26)]
+    signal_line = _ema(macd_line, 9)
+    histogram = macd_line[-1] - signal_line[-1]
+    return {
+        "macd": round(macd_line[-1], 2),
+        "signal": round(signal_line[-1], 2),
+        "histogram": round(histogram, 2),
+    }
+
+
+def _compute_stochastic(highs: list[float], lows: list[float], closes: list[float], period: int = 14) -> dict | None:
+    """스토캐스틱 오실레이터 (%K, %D) 계산."""
+    if len(closes) < period:
+        return None
+    highest = max(highs[-period:])
+    lowest = min(lows[-period:])
+    if highest == lowest:
+        k = 50.0
+    else:
+        k = round((closes[-1] - lowest) / (highest - lowest) * 100, 2)
+    # %D: %K의 3일 이동평균 (단순 근사)
+    d = k  # 단일 포인트에서는 %K와 동일
+    return {"k": k, "d": d}
+
+
+def _compute_bollinger(closes: list[float], period: int = 20, num_std: float = 2.0) -> dict | None:
+    """볼린저 밴드 (MA20 ± 2σ) 계산."""
+    if len(closes) < period:
+        return None
+    window = closes[-period:]
+    ma = sum(window) / period
+    variance = sum((x - ma) ** 2 for x in window) / period
+    std = variance ** 0.5
+    return {
+        "upper": round(ma + num_std * std, 2),
+        "middle": round(ma, 2),
+        "lower": round(ma - num_std * std, 2),
+        "bandwidth": round((num_std * std * 2) / ma * 100, 2) if ma else 0,
+        "position": round((closes[-1] - (ma - num_std * std)) / (num_std * std * 2) * 100, 1) if std > 0 else 50.0,
+    }
+
+
 def get_price_history(ticker: str) -> dict:
     """1년 일별 OHLCV 조회: Yahoo Finance."""
 
@@ -314,7 +390,11 @@ def get_price_history(ticker: str) -> dict:
                 "vol_ratio_20d": vol_ratio,
                 "ret_5d":  ret_5d,
                 "ret_20d": ret_20d,
-                "recent_closes": [round(c) for c in cs[-10:]],
+                "recent_closes": [round(c) for c in cs[-60:]],
+                "rsi": _compute_rsi(cs),
+                "macd": _compute_macd(cs),
+                "stochastic": _compute_stochastic(hs, ls, cs),
+                "bollinger": _compute_bollinger(cs),
             }
             print(f"[Stock] {ticker} price history OK ({suffix}): {len(rows)}days", flush=True)
             return result

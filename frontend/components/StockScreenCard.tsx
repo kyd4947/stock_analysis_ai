@@ -18,6 +18,7 @@ import {
   Target,
   TrendingDown,
   TrendingUp,
+  Activity,
   Users,
   X,
 } from "lucide-react";
@@ -444,6 +445,74 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                   <p className="mt-1 text-base font-bold text-slate-950">{value}</p>
                 </div>
               ))}
+            </div>
+            {(item.financial.debt_ratio != null || item.financial.dividend_yield != null) && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {item.financial.debt_ratio != null && (
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs font-semibold text-slate-400">부채비율</p>
+                    <p className="mt-1 text-base font-bold text-slate-950">{item.financial.debt_ratio}%</p>
+                  </div>
+                )}
+                {item.financial.dividend_yield != null && (
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs font-semibold text-slate-400">배당수익률</p>
+                    <p className="mt-1 text-base font-bold text-slate-950">{item.financial.dividend_yield}%</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CollapsibleSection>
+        )}
+
+        {/* 기술적 지표 */}
+        {item.price_history && (item.price_history.rsi != null || item.price_history.macd != null || item.price_history.stochastic != null || item.price_history.bollinger != null) && (
+          <CollapsibleSection title="기술적 지표" icon={Activity}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {item.price_history.rsi != null && (
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-400">RSI(14)</p>
+                  <p className={`mt-1 text-base font-bold ${item.price_history.rsi >= 70 ? "text-rose-600" : item.price_history.rsi <= 30 ? "text-emerald-600" : "text-slate-950"}`}>
+                    {item.price_history.rsi}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {item.price_history.rsi >= 70 ? "과매수" : item.price_history.rsi <= 30 ? "과매도" : "중립"}
+                  </p>
+                </div>
+              )}
+              {item.price_history.macd && (
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-400">MACD</p>
+                  <p className={`mt-1 text-base font-bold ${item.price_history.macd.histogram > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                    {item.price_history.macd.macd}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    시그널 {item.price_history.macd.signal} · 히스토그램 {item.price_history.macd.histogram > 0 ? "+" : ""}{item.price_history.macd.histogram}
+                  </p>
+                </div>
+              )}
+              {item.price_history.stochastic && (
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-400">스토캐스틱</p>
+                  <p className={`mt-1 text-base font-bold ${item.price_history.stochastic.k >= 80 ? "text-rose-600" : item.price_history.stochastic.k <= 20 ? "text-emerald-600" : "text-slate-950"}`}>
+                    %K {item.price_history.stochastic.k}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {item.price_history.stochastic.k >= 80 ? "과매수" : item.price_history.stochastic.k <= 20 ? "과매도" : "중립"}
+                  </p>
+                </div>
+              )}
+              {item.price_history.bollinger && (
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-400">볼린저 밴드</p>
+                  <p className="mt-1 text-base font-bold text-slate-950">
+                    {item.price_history.bollinger.position}%
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    상단 {item.price_history.bollinger.upper.toLocaleString()} · 하단 {item.price_history.bollinger.lower.toLocaleString()}
+                  </p>
+                </div>
+              )}
             </div>
           </CollapsibleSection>
         )}
