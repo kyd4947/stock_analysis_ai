@@ -24,7 +24,6 @@ import type { MarketInsight, RecommendResult } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
 import { WatchlistPage } from "@/components/WatchlistPage";
 import { ProfilePage } from "@/components/ProfilePage";
-import { PortfolioPage } from "@/components/PortfolioPage";
 import { StockSearchBox } from "@/components/StockSearchBox";
 import { useSearchContext } from "./layout";
 
@@ -253,7 +252,6 @@ export default function Page() {
 
   // 탭 라우팅
   if (activeNav === "watchlist") return <WatchlistPage />;
-  if (activeNav === "portfolio") return <PortfolioPage />;
   if (activeNav === "profile") return <ProfilePage />;
 
   const marketCards = [
