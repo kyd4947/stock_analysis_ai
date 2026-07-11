@@ -118,7 +118,7 @@ function MacroPanel({
         { range: "0~20", label: "안정", color: "text-emerald-600" },
       ]}
       : null,
-  ].filter(Boolean);
+  ].filter((x): x is NonNullable<typeof x> => Boolean(x));
 
   const employment = macro?.employment;
   const empEntries: Array<EmploymentIndicator & { icon: React.ElementType }> = employment
