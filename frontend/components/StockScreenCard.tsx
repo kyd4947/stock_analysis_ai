@@ -30,18 +30,10 @@ import {
   askStockQuestion,
   authHeaders,
   fetchEntryExit,
-  fetchTossOrderbook,
-  fetchTossTrades,
-  fetchTossPriceLimits,
-  fetchTossCandles,
 } from "@/lib/api";
 import type {
   StockScreenResult,
   EntryExitResult,
-  TossOrderbook,
-  TossTrade,
-  TossPriceLimit,
-  TossCandle,
 } from "@/lib/api";
 
 type StockScreenCardProps = {
@@ -191,41 +183,11 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
   const [entryExitLoading, setEntryExitLoading] = React.useState(false);
   const [entryExitError, setEntryExitError] = React.useState("");
 
-  const [priceLimit, setPriceLimit] = React.useState<TossPriceLimit | null>(null);
-  const [orderbook, setOrderbook] = React.useState<TossOrderbook | null>(null);
-  const [trades, setTrades] = React.useState<TossTrade[]>([]);
-  const [candles, setCandles] = React.useState<TossCandle[]>([]);
-  const [tossLoading, setTossLoading] = React.useState(true);
-  const [orderbookLoading, setOrderbookLoading] = React.useState(false);
-
   React.useEffect(() => {
     if (chatOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, chatOpen]);
-
-  React.useEffect(() => {
-    async function loadTossData() {
-      setTossLoading(true);
-      const [pl, c, t] = await Promise.all([
-        fetchTossPriceLimits(item.ticker),
-        fetchTossCandles(item.ticker, "1d", 20),
-        fetchTossTrades(item.ticker, 15),
-      ]);
-      if (pl) setPriceLimit(pl);
-      if (c.length > 0) setCandles(c);
-      if (t.length > 0) setTrades(t);
-      setTossLoading(false);
-    }
-    loadTossData();
-  }, [item.ticker]);
-
-  async function handleLoadOrderbook() {
-    setOrderbookLoading(true);
-    const ob = await fetchTossOrderbook(item.ticker);
-    if (ob) setOrderbook(ob);
-    setOrderbookLoading(false);
-  }
 
   const newsContext = item.news?.articles
     ?.slice(0, 5)
@@ -576,134 +538,6 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 </div>
               ))}
             </div>
-          </CollapsibleSection>
-        )}
-
-        {/* ── Toss 시장 데이터 ────────────────────────────────────────────── */}
-        {!tossLoading && (
-          <CollapsibleSection title="Toss 시장 데이터" icon={BarChart3}>
-
-            {/* 상/하한가 */}
-            {priceLimit?.upperLimit && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <p className="text-[10px] font-semibold text-rose-500">상한가</p>
-                    <p className="mt-0.5 text-sm font-bold text-slate-900">
-                      {priceLimit.upperLimit?.toLocaleString("ko-KR") ?? "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-slate-400">기준가</p>
-                    <p className="mt-0.5 text-sm font-bold text-slate-900">
-                      {priceLimit.basePrice?.toLocaleString("ko-KR") ?? "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-blue-500">하한가</p>
-                    <p className="mt-0.5 text-sm font-bold text-slate-900">
-                      {priceLimit.lowerLimit?.toLocaleString("ko-KR") ?? "-"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 호가 */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-xs font-semibold text-slate-500">호가</p>
-                <button
-                  type="button"
-                  onClick={handleLoadOrderbook}
-                  disabled={orderbookLoading}
-                  className="text-[11px] text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                >
-                  {orderbookLoading ? "로딩 중..." : orderbook ? "새로고침" : "호가 불러오기"}
-                </button>
-              </div>
-              {orderbook && (
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between font-semibold text-slate-400 pb-1 border-b border-slate-200">
-                    <span>매도호가</span>
-                    <span>수량</span>
-                    <span>매수호가</span>
-                    <span>수량</span>
-                  </div>
-                  {orderbook.asks.slice(0, 5).map((ask, i) => {
-                    const bid = orderbook.bids[i];
-                    return (
-                      <div key={i} className="flex justify-between text-slate-700">
-                        <span className="text-blue-600 font-medium">{ask.price?.toLocaleString("ko-KR") ?? "-"}</span>
-                        <span className="text-slate-500">{ask.quantity?.toLocaleString() ?? "-"}</span>
-                        <span className="text-rose-600 font-medium">{bid?.price?.toLocaleString("ko-KR") ?? "-"}</span>
-                        <span className="text-slate-500">{bid?.quantity?.toLocaleString() ?? "-"}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* 최근 체결 내역 */}
-            {trades.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-slate-500 mb-1.5">최근 체결</p>
-                <div className="max-h-[160px] overflow-y-auto rounded-lg border border-slate-200">
-                  <table className="w-full text-xs">
-                    <thead className="bg-slate-100 text-slate-500 sticky top-0">
-                      <tr>
-                        <th className="px-2 py-1.5 text-left font-medium">가격</th>
-                        <th className="px-2 py-1.5 text-right font-medium">수량</th>
-                        <th className="px-2 py-1.5 text-right font-medium">체결</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {trades.slice(0, 15).map((t, i) => (
-                        <tr key={i} className="border-t border-slate-100">
-                          <td className={`px-2 py-1 font-medium ${t.side === "BUY" ? "text-rose-600" : "text-blue-600"}`}>
-                            {t.price?.toLocaleString("ko-KR") ?? "-"}
-                          </td>
-                          <td className="px-2 py-1 text-right text-slate-600">{t.quantity?.toLocaleString() ?? "-"}</td>
-                          <td className="px-2 py-1 text-right text-slate-400">
-                            {t.side === "BUY" ? "매수" : "매도"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* 캔들 차트 요약 */}
-            {candles.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-slate-500 mb-1.5">최근 {candles.length}일 종가</p>
-                <div className="flex items-end gap-0.5 h-20">
-                  {candles.slice(-20).map((c, i) => {
-                    const prices = candles.slice(-20).map((x) => x.close);
-                    const max = Math.max(...prices);
-                    const min = Math.min(...prices);
-                    const range = max - min || 1;
-                    const h = ((c.close - min) / range) * 100;
-                    const isUp = c.close >= (candles.slice(-20)[Math.max(0, i - 1)]?.close ?? c.close);
-                    return (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-t-sm"
-                        style={{ height: `${Math.max(h, 3)}%` }}
-                        title={`${new Date(c.timestamp).toLocaleDateString("ko-KR")} ${c.close.toLocaleString("ko-KR")}원`}
-                      >
-                        <div
-                          className={`h-full w-full rounded-t-sm ${isUp ? "bg-rose-400" : "bg-blue-400"}`}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </CollapsibleSection>
         )}
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { getToken } from "@/lib/auth";
 
 const UPCOMING_FEATURES = [
-  { icon: RefreshCw, label: "보유 종목 자동 동기화", desc: "Toss 계좌의 종목을 실시간으로 불러옵니다." },
+  { icon: RefreshCw, label: "보유 종목 자동 동기화", desc: "증권사 계좌의 종목을 실시간으로 불러옵니다." },
   { icon: TrendingUp, label: "매수 평균가 기반 수익률", desc: "매수가 대비 현재 수익률을 계산합니다." },
   { icon: ShieldCheck, label: "포트폴리오 리스크 진단", desc: "섹터 편중, 변동성 리스크를 분석합니다." },
   { icon: BarChart3, label: "AI 리밸런싱 추천", desc: "투자 성향에 맞는 비중 조정을 제안합니다." },
@@ -30,7 +30,7 @@ export function PortfolioPage() {
     setLoading(true);
     try {
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-      const res = await fetch(`${API_BASE}/api/toss/holdings`, {
+      const res = await fetch(`${API_BASE}/api/holdings`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (!res.ok) {
@@ -39,10 +39,9 @@ export function PortfolioPage() {
         return;
       }
       const data = await res.json();
-      // Toss Open API 응답 구조: { result: { items: [...] } }
-      const items = data?.result?.items ?? data?.holdings ?? [];
+      const items = data?.holdings ?? data?.result?.items ?? [];
       if (!items.length) {
-        alert("계좌에 보유 종목이 없습니다. Toss 계좌를 확인해주세요.");
+        alert("계좌에 보유 종목이 없습니다. 계좌를 확인해주세요.");
         return;
       }
       const mapped: Holding[] = items.map((item: any) => ({
@@ -71,7 +70,7 @@ export function PortfolioPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">보유 종목 현황</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Toss 계좌를 연동하면 실제 보유 종목을 기반으로 AI 분석을 자동 실행합니다.
+            증권사 계좌를 연동하면 실제 보유 종목을 기반으로 AI 분석을 자동 실행합니다.
           </p>
         </header>
 
@@ -84,12 +83,12 @@ export function PortfolioPage() {
           </div>
           <div className="text-center">
             <p className="text-base font-bold text-slate-950">
-              {isConnected ? "Toss 계좌 연동 완료" : "Toss 계좌 연동이 필요합니다"}
+              {isConnected ? "계좌 연동 완료" : "계좌 연동이 필요합니다"}
             </p>
             <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
               {isConnected 
                 ? "최근 동기화: 방금 전"
-                : "Toss API 키가 설정되었습니다. 아래 버튼을 눌러 연동을 시작하세요."}
+                : "아래 버튼을 눌러 연동을 시작하세요."}
             </p>
             {!isConnected && (
               <Button 

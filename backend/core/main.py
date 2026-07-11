@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from backend.core.limiter import limiter, _rate_limit_exceeded_handler, RateLimitExceeded
 from backend.core.auth import verify_token
-from backend.routers import screen, macro, chat, search, market_insight, prices, recommend, entry_exit, toss, auth
+from backend.routers import screen, macro, chat, search, market_insight, prices, recommend, entry_exit, auth
 
 # ALLOWED_ORIGINS 환경변수: 쉼표로 구분된 허용 도메인 목록
 # 예: https://your-app.vercel.app,https://your-custom-domain.com
@@ -59,7 +59,6 @@ app.include_router(market_insight.router, prefix="/api")
 app.include_router(prices.router, prefix="/api")
 app.include_router(recommend.router, prefix="/api")
 app.include_router(entry_exit.router, prefix="/api")
-app.include_router(toss.router, prefix="/api")
 
 PUBLIC_PATHS = {"/", "/api/auth/login", "/docs", "/openapi.json", "/redoc"}
 

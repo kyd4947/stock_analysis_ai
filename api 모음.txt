@@ -1,3 +1,2 @@
 news api = d4b1e413b4bc4f8a95d08a3e613dc5ad
 fred api = 4595e79cd7a620a5f5f9a2c94bbcfcd3
-toss api = tsck_live_ih1stUVMDNDjS11E11ncMC

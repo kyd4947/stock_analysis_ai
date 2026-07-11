@@ -10,7 +10,7 @@
 - **Frontend:** Next.js (App Router), Tailwind CSS, Shadcn UI
 - **AI/LLM:** Google Gemini API (분석 및 개인화 답변)
 - **Database:** Supabase (PostgreSQL)
-- **External API:** Toss Securities API, ECOS(한국은행), DART, FRED, NewsAPI
+- **External API:** ECOS(한국은행), DART, FRED, NewsAPI
 
 ## 🏗 시스템 아키텍처
 1. **데이터 레이어:** ECOS, FRED, DART, 뉴스 API로부터 실시간 데이터 수집.
