@@ -192,7 +192,7 @@ export default function Page() {
               name: r.name ?? item.name ?? KR_STOCK_NAMES[item.ticker],
               price: r.price,
               change:
-                r.change_rate !== undefined
+                r.change_rate != null
                   ? `${r.change_rate >= 0 ? "+" : ""}${r.change_rate.toFixed(1)}%`
                   : item.change,
             };
@@ -241,7 +241,7 @@ export default function Page() {
           price: r.price,
           tag: r.sector ?? item.tag,
           change:
-            r.change_rate !== undefined
+            r.change_rate != null
               ? `${r.change_rate >= 0 ? "+" : ""}${r.change_rate.toFixed(1)}%`
               : item.change,
         };

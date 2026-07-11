@@ -66,6 +66,8 @@ function MacroPanel({
   error?: boolean;
   compact?: boolean;
 }) {
+  const [expandedFear, setExpandedFear] = React.useState<string | null>(null);
+
   const rows = [
     {
       label: "USD/KRW",
@@ -86,6 +88,39 @@ function MacroPanel({
       icon: BarChart3,
     },
   ];
+
+  function getVixSignal(v: number) {
+    if (v >= 40) return { sig: "극심한 공포", cls: "bg-rose-100 text-rose-800", desc: "금융위기급 공포. 시장이 극도의 불안 상태이며, 공격적 매수 기회로 해석되기도 합니다." };
+    if (v >= 30) return { sig: "패닉", cls: "bg-rose-50 text-rose-700", desc: "시장이 매우 불안정하며, 급격한 하락이나 반등이 잦아지는 국면입니다." };
+    if (v >= 20) return { sig: "주의", cls: "bg-amber-50 text-amber-700", desc: "불확실성이 커지기 시작하며, 투자자들이 방어적으로 변하는 구간입니다." };
+    return { sig: "안정", cls: "bg-emerald-50 text-emerald-700", desc: "시장이 낙관적이고 변동성이 낮은 평상시 국면입니다." };
+  }
+
+  function getVkospiSignal(v: number) {
+    if (v >= 80) return { sig: "초비상/위기", cls: "bg-rose-100 text-rose-800", desc: "금융위기·팬데믹급 극단적 공포. 2008년이나 2020년급 시장 충격 신호입니다." };
+    if (v >= 50) return { sig: "심리적 불안", cls: "bg-rose-50 text-rose-700", desc: "큰 악재가 겹치거나 수급이 꼬였을 때 나타나는 수치입니다." };
+    if (v >= 20) return { sig: "일반 변동성", cls: "bg-amber-50 text-amber-700", desc: "한국 시장에서 흔히 관찰되는 범위입니다." };
+    return { sig: "매우 안정", cls: "bg-emerald-50 text-emerald-700", desc: "한국 시장에서 이 수준이면 엄청난 평온함입니다." };
+  }
+
+  const fearItems = [
+    macro?.vkospi
+      ? { key: "vkospi", label: "한국 공포지수 (VKOSPI)", value: macro.vkospi.price, change: macro.vkospi.change_rate, signal: getVkospiSignal(macro.vkospi.price), ranges: [
+        { range: "80~100", label: "초비상/위기", color: "text-rose-700" },
+        { range: "50~80", label: "심리적 불안", color: "text-rose-600" },
+        { range: "20~50", label: "일반 변동성", color: "text-amber-600" },
+        { range: "10~20", label: "매우 안정", color: "text-emerald-600" },
+      ]}
+      : null,
+    macro?.vix
+      ? { key: "vix", label: "미국 공포지수 (VIX)", value: macro.vix.price, change: macro.vix.change_rate, signal: getVixSignal(macro.vix.price), ranges: [
+        { range: "40+", label: "극심한 공포", color: "text-rose-700" },
+        { range: "30~40", label: "패닉", color: "text-rose-600" },
+        { range: "20~30", label: "주의", color: "text-amber-600" },
+        { range: "0~20", label: "안정", color: "text-emerald-600" },
+      ]}
+      : null,
+  ].filter(Boolean);
 
   const employment = macro?.employment;
   const empEntries: Array<EmploymentIndicator & { icon: React.ElementType }> = employment
@@ -144,35 +179,51 @@ function MacroPanel({
           </div>
         ))}
 
-        {(macro?.vkospi || macro?.vix) && (
+        {fearItems.length > 0 && (
           <>
             <div className="my-1 border-t border-slate-100" />
-            {[
-              macro?.vkospi ? { label: "한국 공포지수", value: macro.vkospi.price, change: macro.vkospi.change_rate } : null,
-              macro?.vix   ? { label: "미국 공포지수", value: macro.vix.price,    change: macro.vix.change_rate }    : null,
-            ]
-              .filter(Boolean)
-              .map((item) => {
-                const v = item!.value;
-                const { sig, cls } =
-                  v >= 25 ? { sig: "공포", cls: "bg-rose-50 text-rose-700" } :
-                  v >= 15 ? { sig: "보통", cls: "bg-amber-50 text-amber-700" } :
-                            { sig: "안정", cls: "bg-emerald-50 text-emerald-700" };
-                return (
-                  <div key={item!.label} className="flex items-center justify-between gap-3">
+            {fearItems.map((item) => {
+              const isExpanded = expandedFear === item.key;
+              return (
+                <div key={item.key}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedFear(isExpanded ? null : item.key)}
+                    className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-1 text-left transition-colors hover:bg-slate-50"
+                  >
                     <div className="flex min-w-0 items-center gap-2">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
                         <Activity className="h-4 w-4" />
                       </div>
-                      <span className="truncate text-xs font-medium text-slate-500">{item!.label}</span>
+                      <span className="truncate text-xs font-medium text-slate-500">{item.label}</span>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-sm font-bold text-slate-900">{v.toFixed(2)}</span>
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${cls}`}>{sig}</span>
+                      <span className="text-sm font-bold text-slate-900">{item.value.toFixed(2)}</span>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${item.signal.cls}`}>{item.signal.sig}</span>
                     </div>
-                  </div>
-                );
-              })}
+                  </button>
+                  {isExpanded && (
+                    <div className="ml-10 mt-1 mb-2 space-y-2 rounded-md bg-slate-50 p-2.5 text-xs">
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">해석 기준</p>
+                        <div className="space-y-0.5">
+                          {item.ranges.map((r) => (
+                            <div key={r.range} className="flex items-center justify-between">
+                              <span className="font-mono text-slate-500">{r.range}</span>
+                              <span className={`font-semibold ${r.color}`}>{r.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="border-t border-slate-200 pt-2">
+                        <p className="font-semibold text-slate-700 mb-0.5">현재 상태</p>
+                        <p className="text-slate-600 leading-5">{item.signal.desc}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </>
         )}
 
