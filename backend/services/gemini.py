@@ -122,6 +122,23 @@ def analyze_stock(
         tech_parts.append(f"거래량 {vol_desc}")
     if ph.get("ret_5d") is not None and ph.get("ret_20d") is not None:
         tech_parts.append(f"최근 수익률 5일 {ph['ret_5d']:+.1f}% / 20일 {ph['ret_20d']:+.1f}%")
+    # 보조 지표 (RSI, MACD, 스토캐스틱, 볼린저)
+    if ph.get("rsi") is not None:
+        rsi = ph["rsi"]
+        rsi_desc = "과매수" if rsi >= 70 else ("과매도" if rsi <= 30 else "중립")
+        tech_parts.append(f"RSI(14) {rsi} → {rsi_desc}")
+    if ph.get("macd"):
+        m = ph["macd"]
+        macd_desc = "상승추세" if m["histogram"] > 0 else "하락추세"
+        tech_parts.append(f"MACD {m['macd']} / Signal {m['signal']} / Histogram {m['histogram']:+.2f} → {macd_desc}")
+    if ph.get("stochastic"):
+        s = ph["stochastic"]
+        stoch_desc = "과매수" if s["k"] >= 80 else ("과매도" if s["k"] <= 20 else "중립")
+        tech_parts.append(f"스토캐스틱 %K {s['k']} → {stoch_desc}")
+    if ph.get("bollinger"):
+        b = ph["bollinger"]
+        boll_desc = "상단 접근(과매수 가능)" if b["position"] >= 80 else ("하단 접근(과매도 가능)" if b["position"] <= 20 else "밴드 중간")
+        tech_parts.append(f"볼린저밴드 위치 {b['position']}% / 상단 {b['upper']:,}원 / 하단 {b['lower']:,}원 → {boll_desc}")
     tech_text = "\n".join(tech_parts) or "데이터 없음"
 
     # KOSPI 대비 상대 강도
