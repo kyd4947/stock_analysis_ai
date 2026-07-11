@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { LoginPage } from "@/components/LoginPage";
 import type { NavItem } from "@/components/AppSidebar";
 import { fetchMacro, screenStocks } from "@/lib/api";
 import type { MacroSnapshot, ScreenResponse } from "@/lib/api";
@@ -54,8 +53,6 @@ export function useSearchContext() {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeNav, setActiveNavState] = useState<NavItem>("analysis");
@@ -64,7 +61,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [macroLoading, setMacroLoading] = useState(false);
 
   useEffect(() => {
-    setAuthChecked(true);
     document.title = "Stock Analysis AI — 거시경제 기반 투자 분석";
     const meta = document.createElement("meta");
     meta.name = "apple-mobile-web-app-capable";
@@ -102,7 +98,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   useEffect(() => {
-    if (!authenticated) return;
     let firstLoad = true;
     async function loadMacro() {
       if (firstLoad) setMacroLoading(true);
@@ -118,7 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     loadMacro();
     const id = setInterval(loadMacro, 15_000);
     return () => clearInterval(id);
-  }, [authenticated]);
+  }, []);
 
   async function handleTickerSearch(input: string | React.FormEvent) {
     if (typeof input !== "string") {
@@ -192,24 +187,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     if (saved) handleTickerSearch(saved);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  if (!authChecked) {
-    return (
-      <html lang="ko" className="h-full">
-        <body className="h-full bg-slate-100" />
-      </html>
-    );
-  }
-
-  if (!authenticated) {
-    return (
-      <html lang="ko" className="h-full">
-        <body className="h-full bg-slate-100">
-          <LoginPage onLogin={() => { setAuthenticated(true); }} />
-        </body>
-      </html>
-    );
-  }
 
   return (
     <html lang="ko" className="h-full">

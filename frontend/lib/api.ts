@@ -113,25 +113,11 @@ export type ChatMessage = {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-export function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  const headers: Record<string, string> = { ...extra };
-  if (typeof window !== "undefined") {
-    const token = sessionStorage.getItem("auth_token");
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
-}
-
-/**
- * Why:
- * - 백엔드와의 통신 포인트를 한 곳(`lib/api.ts`)으로 모아두면,
- *   API 경로/에러처리 방식을 나중에 쉽게 일괄 변경할 수 있습니다.
- */
 export async function screenStocks(request: ScreenRequest): Promise<ScreenResponse> {
   try{
     const res = await fetch(`${API_BASE_URL}/api/screen`, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json", "Accept" : "application/json"}),
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
       // Why:
       // - 브라우저에서 실행되는 경우 쿠키 인증 등이 필요할 수 있어 credentials 옵션을 고려할 수 있습니다.
       // - 스켈레톤에서는 기본 false로 두어 CORS 설정을 최소화합니다.
@@ -155,7 +141,7 @@ export async function screenStocks(request: ScreenRequest): Promise<ScreenRespon
 export async function fetchMacro(): Promise<MacroSnapshot> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/macro`, {
-      headers: authHeaders({ Accept: "application/json" }),
+      headers: { Accept: "application/json" },
       cache: "no-store",
     });
 
@@ -176,7 +162,7 @@ export async function fetchMarketNews(): Promise<
 > {
   try {
     const res = await fetch(`${API_BASE_URL}/api/market-news`, {
-      headers: authHeaders({ Accept: "application/json" }),
+      headers: { Accept: "application/json" },
       cache: "no-store",
     });
     if (!res.ok) return [];
@@ -199,7 +185,7 @@ export type MarketInsight = {
 export async function fetchMarketInsight(): Promise<MarketInsight | null> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/market-insight`, {
-      headers: authHeaders({ Accept: "application/json" }),
+      headers: { Accept: "application/json" },
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -221,7 +207,7 @@ export async function fetchPrices(tickers: string[]): Promise<PriceResult[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/prices`, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ tickers }),
     });
     if (!res.ok) return [];
@@ -238,7 +224,7 @@ export async function searchStocks(
   try {
     const res = await fetch(
       `${API_BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=10`,
-      { headers: authHeaders({ Accept: "application/json" }), cache: "no-store" }
+      { headers: { Accept: "application/json" }, cache: "no-store" }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -267,7 +253,7 @@ export async function fetchRecommendation(
   try {
     const res = await fetch(`${API_BASE_URL}/api/recommend`, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ user_profile: userProfile }),
     });
     if (!res.ok) return null;
@@ -296,7 +282,7 @@ export async function fetchEntryExit(
   try {
     const res = await fetch(`${API_BASE_URL}/api/entry-exit`, {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ ticker, financial }),
     });
     if (!res.ok) return null;
@@ -313,7 +299,7 @@ export async function askStockQuestion(
 ): Promise<string> {
   const res = await fetch(`${API_BASE_URL}/api/chat`, {
     method: "POST",
-    headers: authHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
       ticker,
       question,

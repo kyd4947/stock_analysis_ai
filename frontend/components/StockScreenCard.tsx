@@ -28,7 +28,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import {
   askStockQuestion,
-  authHeaders,
   fetchEntryExit,
 } from "@/lib/api";
 import type {
@@ -254,7 +253,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
       const res = await fetch(`${API_BASE}/api/chat/stream`, {
         method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json", Accept: "text/event-stream" }),
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ ticker: item.ticker, question: q, context_summary: contextSummary }),
       });
 
