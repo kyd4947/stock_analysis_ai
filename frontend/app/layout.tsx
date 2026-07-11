@@ -89,7 +89,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       try { setUserProfileState(JSON.parse(stored)); } catch {}
     }
     const savedNav = localStorage.getItem("active_nav") as NavItem | null;
-    const validNavs: NavItem[] = ["analysis", "watchlist", "portfolio", "profile"];
+    const validNavs: NavItem[] = ["analysis", "watchlist", "profile"];
     if (savedNav && validNavs.includes(savedNav)) {
       setActiveNavState(savedNav);
     }
