@@ -182,6 +182,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
   const [entryExit, setEntryExit] = React.useState<EntryExitResult | null>(null);
   const [entryExitLoading, setEntryExitLoading] = React.useState(false);
   const [entryExitError, setEntryExitError] = React.useState("");
+  const [expandedIndicator, setExpandedIndicator] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (chatOpen) {
@@ -448,17 +449,55 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
             {(item.financial.debt_ratio != null || item.financial.dividend_yield != null) && (
               <div className="mt-3 grid grid-cols-2 gap-3">
                 {item.financial.debt_ratio != null && (
-                  <div className="rounded-lg bg-slate-50 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedIndicator(expandedIndicator === "debt" ? null : "debt")}
+                    className="rounded-lg bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+                  >
                     <p className="text-xs font-semibold text-slate-400">부채비율</p>
-                    <p className="mt-1 text-base font-bold text-slate-950">{item.financial.debt_ratio}%</p>
-                  </div>
+                    <p className={`mt-1 text-base font-bold ${item.financial.debt_ratio >= 200 ? "text-rose-600" : item.financial.debt_ratio >= 100 ? "text-amber-600" : "text-slate-950"}`}>
+                      {item.financial.debt_ratio}%
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">클릭</p>
+                  </button>
                 )}
                 {item.financial.dividend_yield != null && (
-                  <div className="rounded-lg bg-slate-50 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedIndicator(expandedIndicator === "div" ? null : "div")}
+                    className="rounded-lg bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+                  >
                     <p className="text-xs font-semibold text-slate-400">배당수익률</p>
-                    <p className="mt-1 text-base font-bold text-slate-950">{item.financial.dividend_yield}%</p>
-                  </div>
+                    <p className="mt-1 text-base font-bold text-slate-950">
+                      {item.financial.dividend_yield}%
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">클릭</p>
+                  </button>
                 )}
+              </div>
+            )}
+            {expandedIndicator === "debt" && item.financial.debt_ratio != null && (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs space-y-2">
+                <p className="font-semibold text-slate-700">부채비율</p>
+                <p className="text-slate-600">총부채를 자기자본으로 나눈 비율로, 기업의 재무 건전성을 평가하는 지표입니다. 높을수록 차입 의존도가 크며 파산 리스크가 높아집니다.</p>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">100% 이하</span><span className="font-semibold text-emerald-700">안정적 (적정 수준)</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">100~200%</span><span className="font-semibold text-amber-700">보통 (업종에 따라 다름)</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">200% 이상</span><span className="font-semibold text-rose-700">위험 (높은 차입 의존)</span></div>
+                </div>
+                <p className="text-slate-500">현재 부채비율: <span className="font-bold text-slate-900">{item.financial.debt_ratio}%</span> → {item.financial.debt_ratio >= 200 ? "재무 리스크 높음, 추가 확인 필요" : item.financial.debt_ratio >= 100 ? "보통 수준, 업종 평균과 비교 필요" : "재무 안정적"}</p>
+              </div>
+            )}
+            {expandedIndicator === "div" && item.financial.dividend_yield != null && (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs space-y-2">
+                <p className="font-semibold text-slate-700">배당수익률</p>
+                <p className="text-slate-600">주당배당금을 현재 주가로 나눈 비율로, 투자 대비 연간 배당 수익을 보여줍니다. 높을수록 배당 매력도가 크지만, 지속 가능성도 함께 확인해야 합니다.</p>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">3% 이상</span><span className="font-semibold text-emerald-700">높은 배당 (배당주 매력)</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">1~3%</span><span className="font-semibold text-slate-700">보통</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">1% 이하</span><span className="font-semibold text-slate-500">낮은 배당</span></div>
+                </div>
+                <p className="text-slate-500">현재 배당수익률: <span className="font-bold text-slate-900">{item.financial.dividend_yield}%</span> → {item.financial.dividend_yield >= 3 ? "배당 매력 높음" : item.financial.dividend_yield >= 1 ? "보통 수준" : "배당 미미"}</p>
               </div>
             )}
           </CollapsibleSection>
@@ -469,50 +508,116 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
           <CollapsibleSection title="기술적 지표" icon={Activity}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {item.price_history.rsi != null && (
-                <div className="rounded-lg bg-slate-50 p-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedIndicator(expandedIndicator === "rsi" ? null : "rsi")}
+                  className="rounded-lg bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+                >
                   <p className="text-xs font-semibold text-slate-400">RSI(14)</p>
                   <p className={`mt-1 text-base font-bold ${item.price_history.rsi >= 70 ? "text-rose-600" : item.price_history.rsi <= 30 ? "text-emerald-600" : "text-slate-950"}`}>
                     {item.price_history.rsi}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    {item.price_history.rsi >= 70 ? "과매수" : item.price_history.rsi <= 30 ? "과매도" : "중립"}
+                    {item.price_history.rsi >= 70 ? "과매수" : item.price_history.rsi <= 30 ? "과매도" : "중립"} · 클릭
                   </p>
-                </div>
+                </button>
               )}
               {item.price_history.macd && (
-                <div className="rounded-lg bg-slate-50 p-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedIndicator(expandedIndicator === "macd" ? null : "macd")}
+                  className="rounded-lg bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+                >
                   <p className="text-xs font-semibold text-slate-400">MACD</p>
                   <p className={`mt-1 text-base font-bold ${item.price_history.macd.histogram > 0 ? "text-rose-600" : "text-emerald-600"}`}>
                     {item.price_history.macd.macd}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    시그널 {item.price_history.macd.signal} · 히스토그램 {item.price_history.macd.histogram > 0 ? "+" : ""}{item.price_history.macd.histogram}
+                    시그널 {item.price_history.macd.signal} · 클릭
                   </p>
-                </div>
+                </button>
               )}
               {item.price_history.stochastic && (
-                <div className="rounded-lg bg-slate-50 p-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedIndicator(expandedIndicator === "stoch" ? null : "stoch")}
+                  className="rounded-lg bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+                >
                   <p className="text-xs font-semibold text-slate-400">스토캐스틱</p>
                   <p className={`mt-1 text-base font-bold ${item.price_history.stochastic.k >= 80 ? "text-rose-600" : item.price_history.stochastic.k <= 20 ? "text-emerald-600" : "text-slate-950"}`}>
                     %K {item.price_history.stochastic.k}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    {item.price_history.stochastic.k >= 80 ? "과매수" : item.price_history.stochastic.k <= 20 ? "과매도" : "중립"}
+                    {item.price_history.stochastic.k >= 80 ? "과매수" : item.price_history.stochastic.k <= 20 ? "과매도" : "중립"} · 클릭
                   </p>
-                </div>
+                </button>
               )}
               {item.price_history.bollinger && (
-                <div className="rounded-lg bg-slate-50 p-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedIndicator(expandedIndicator === "boll" ? null : "boll")}
+                  className="rounded-lg bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+                >
                   <p className="text-xs font-semibold text-slate-400">볼린저 밴드</p>
                   <p className="mt-1 text-base font-bold text-slate-950">
                     {item.price_history.bollinger.position}%
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    상단 {item.price_history.bollinger.upper.toLocaleString()} · 하단 {item.price_history.bollinger.lower.toLocaleString()}
+                    상단 {item.price_history.bollinger.upper.toLocaleString()} · 클릭
                   </p>
-                </div>
+                </button>
               )}
             </div>
+            {/* 확장 설명 */}
+            {expandedIndicator === "rsi" && item.price_history.rsi != null && (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs space-y-2">
+                <p className="font-semibold text-slate-700">RSI (상대강도지수)</p>
+                <p className="text-slate-600">일정 기간 동안 주가가 전일가 대비 얼마나 올랐는지(상승폭)와 얼마나 떨어졌는지(하락폭)를 비교하여 과매수·과매도를 판단하는 지표입니다.</p>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">70 이상</span><span className="font-semibold text-rose-700">과매수 (매도 고려)</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">30~70</span><span className="font-semibold text-slate-700">중립</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">30 이하</span><span className="font-semibold text-emerald-700">과매도 (매수 고려)</span></div>
+                </div>
+                <p className="text-slate-500">현재 RSI: <span className="font-bold text-slate-900">{item.price_history.rsi}</span> → {item.price_history.rsi >= 70 ? "과매수 구간으로 하락 가능성" : item.price_history.rsi <= 30 ? "과매도 구간으로 반등 가능성" : "중립 구간"}</p>
+              </div>
+            )}
+            {expandedIndicator === "macd" && item.price_history.macd && (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs space-y-2">
+                <p className="font-semibold text-slate-700">MACD (이동평균수렴확산)</p>
+                <p className="text-slate-600">단기(12일)·장기(26일) 이동평균선의 차이를 추세로 해석하는 지표입니다. 시그널선(9일)과의 교차점에서 매매 신호를 포착합니다.</p>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">MACD &gt; Signal</span><span className="font-semibold text-rose-700">상승 추세 (매수 신호)</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">MACD &lt; Signal</span><span className="font-semibold text-emerald-700">하락 추세 (매도 신호)</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">히스토그램</span><span className="font-semibold text-slate-700">MACD-Signal 차이 (모멘텀 강도)</span></div>
+                </div>
+                <p className="text-slate-500">현재: MACD <span className="font-bold text-slate-900">{item.price_history.macd.macd}</span>, Signal <span className="font-bold text-slate-900">{item.price_history.macd.signal}</span> → {item.price_history.macd.histogram > 0 ? "상승 추세 유지" : "하락 추세 유지"}</p>
+              </div>
+            )}
+            {expandedIndicator === "stoch" && item.price_history.stochastic && (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs space-y-2">
+                <p className="font-semibold text-slate-700">스토캐스틱 오실레이터</p>
+                <p className="text-slate-600">일정 기간(14일)의 고가~저가 범위 내에서 현재가가 어디에 위치하는지(%)를 보여주는 지표입니다. 과매수·과매도 판단에 활용됩니다.</p>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">80 이상</span><span className="font-semibold text-rose-700">과매수 (상단 접근)</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">20~80</span><span className="font-semibold text-slate-700">중립</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">20 이하</span><span className="font-semibold text-emerald-700">과매도 (하단 접근)</span></div>
+                </div>
+                <p className="text-slate-500">현재 %K: <span className="font-bold text-slate-900">{item.price_history.stochastic.k}</span> → {item.price_history.stochastic.k >= 80 ? "고가권 근접, 조정 가능" : item.price_history.stochastic.k <= 20 ? "저가권 근접, 반등 가능" : "중립 구간"}</p>
+              </div>
+            )}
+            {expandedIndicator === "boll" && item.price_history.bollinger && (
+              <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs space-y-2">
+                <p className="font-semibold text-slate-700">볼린저 밴드</p>
+                <p className="text-slate-600">이동평균선(MA20)을 중심으로 표준편차(±2σ) 밴드를 그려, 현재가가 밴드 내 어디에 위치하는지 판단하는 지표입니다. 변동성과 가격의 상대적 위치를 동시에 파악할 수 있습니다.</p>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">상단 밴드</span><span className="font-bold text-slate-900">{item.price_history.bollinger.upper.toLocaleString()}원</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">중간선(MA20)</span><span className="font-bold text-slate-900">{item.price_history.bollinger.middle.toLocaleString()}원</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">하단 밴드</span><span className="font-bold text-slate-900">{item.price_history.bollinger.lower.toLocaleString()}원</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">밴드폭</span><span className="font-semibold text-slate-700">{item.price_history.bollinger.bandwidth}%</span></div>
+                </div>
+                <p className="text-slate-500">현재 위치: <span className="font-bold text-slate-900">{item.price_history.bollinger.position}%</span> → {item.price_history.bollinger.position >= 80 ? "상단 접근, 과매수 가능" : item.price_history.bollinger.position <= 20 ? "하단 접근, 과매도 가능" : "밴드 중간 위치"}</p>
+              </div>
+            )}
           </CollapsibleSection>
         )}
 
