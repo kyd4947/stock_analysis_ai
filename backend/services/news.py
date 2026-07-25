@@ -215,9 +215,14 @@ def _pick_today(candidates: list[dict], limit: int) -> list[dict]:
 # ── 공개 API ───────────────────────────────────────────────────────────────────
 
 def get_stock_news(ticker: str, company_name: str = "") -> list[dict]:
-    """종목 뉴스. 날짜 필터 없이 최신 기사 반환."""
+    """종목 뉴스. 제목에 종목명/티커가 포함된 기사만 반환."""
     query = company_name or ticker
-    articles = _google_news_rss(f"{query} 주가 주식", limit=10)
+    articles = _google_news_rss(f"{query} 주가 주식", limit=15)
+    if articles:
+        filtered = _filter_by_relevance(articles, ticker, company_name)
+        if filtered:
+            return _sort_by_date(filtered)[:5]
+    # 관련 기사가 없으면 필터 없이 최신순 반환
     if articles:
         return _sort_by_date(articles)[:5]
 
@@ -227,18 +232,49 @@ def get_stock_news(ticker: str, company_name: str = "") -> list[dict]:
     try:
         r = requests.get(
             "https://newsapi.org/v2/everything",
-            params={"q": query, "language": "ko", "sortBy": "publishedAt", "pageSize": 5, "apiKey": key},
+            params={"q": query, "language": "ko", "sortBy": "publishedAt", "pageSize": 10, "apiKey": key},
             timeout=8,
         )
         if r.ok and r.json().get("status") == "ok":
-            return [
+            all_articles = [
                 {"title": a.get("title", ""), "url": a.get("url", ""), "source": a.get("source", {}).get("name", "")}
                 for a in r.json().get("articles", [])
                 if a.get("title") and "[Removed]" not in a.get("title", "")
-            ][:5]
+            ]
+            filtered = _filter_by_relevance(all_articles, ticker, company_name)
+            if filtered:
+                return filtered[:5]
+            return all_articles[:5]
     except Exception:
         pass
     return []
+
+
+def _filter_by_relevance(articles: list[dict], ticker: str, company_name: str) -> list[dict]:
+    """기사 제목에 종목명 또는 티커가 포함된 기사만 필터링."""
+    # 키워드 목록 구성 (대소문자 무시)
+    keywords = set()
+    if company_name:
+        # 회사명 전체 추가
+        keywords.add(company_name.lower())
+        # 괄호 안의 약칭 추출 (예: "삼성전자(005930)" → "삼성전자")
+        if "(" in company_name:
+            short = company_name.split("(")[0].strip()
+            if short:
+                keywords.add(short.lower())
+    if ticker:
+        keywords.add(ticker.lower())
+
+    if not keywords:
+        return articles
+
+    result = []
+    for a in articles:
+        title = (a.get("title") or "").lower()
+        # 제목에 키워드 중 하나라도 포함되면 관련 기사로 판정
+        if any(kw in title for kw in keywords):
+            result.append(a)
+    return result
 
 
 def get_us_market_news(limit: int = 5) -> list[dict]:
