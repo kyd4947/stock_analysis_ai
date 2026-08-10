@@ -26,6 +26,10 @@ _SPAM_TLDS = frozenset([
 _SPAM_TITLE_KEYWORDS = frozenset([
     "슬롯", "카지노", "바카라", "도박", "베팅", "토토", "먹튀",
     "온라인카지노", "casino", "slot", "poker", "betting",
+    # 불법 리딩방 / 투자 사기성 콘텐츠
+    "리딩방", "수익보장", "확정수익", "원금보장", "무료체험", "카톡방",
+    "텔레그램방", "오픈채팅", "종목방", "매매방", "단타방", "수익인증",
+    "따라만 하세요", "벌어드립니다", "무료로 시작", "클릭만 하면",
 ])
 
 
@@ -215,49 +219,77 @@ def _pick_today(candidates: list[dict], limit: int) -> list[dict]:
 # ── 공개 API ───────────────────────────────────────────────────────────────────
 
 def get_stock_news(ticker: str, company_name: str = "") -> list[dict]:
-    """종목 뉴스. 제목에 종목명/티커가 포함된 기사만 반환."""
+    """종목 뉴스. 제목에 종목명/티커가 포함된 기사만 반환.
+
+    - 관련 기사가 없으면 빈 목록을 반환한다 (다른 종목 기사를 대신 노출하지 않음).
+    """
     query = company_name or ticker
-    articles = _google_news_rss(f"{query} 주가 주식", limit=15)
+    articles = _google_news_rss(f"{query} 주가 주식", limit=20)
     if articles:
         filtered = _filter_by_relevance(articles, ticker, company_name)
         if filtered:
             return _sort_by_date(filtered)[:5]
-    # 관련 기사가 없으면 필터 없이 최신순 반환
-    if articles:
-        return _sort_by_date(articles)[:5]
 
     key = settings.NEWS_API_KEY
-    if not key:
-        return []
-    try:
-        r = requests.get(
-            "https://newsapi.org/v2/everything",
-            params={"q": query, "language": "ko", "sortBy": "publishedAt", "pageSize": 10, "apiKey": key},
-            timeout=8,
-        )
-        if r.ok and r.json().get("status") == "ok":
-            all_articles = [
-                {"title": a.get("title", ""), "url": a.get("url", ""), "source": a.get("source", {}).get("name", "")}
-                for a in r.json().get("articles", [])
-                if a.get("title") and "[Removed]" not in a.get("title", "")
-            ]
-            filtered = _filter_by_relevance(all_articles, ticker, company_name)
-            if filtered:
-                return filtered[:5]
-            return all_articles[:5]
-    except Exception:
-        pass
+    if key:
+        try:
+            r = requests.get(
+                "https://newsapi.org/v2/everything",
+                params={"q": query, "language": "ko", "sortBy": "publishedAt", "pageSize": 10, "apiKey": key},
+                timeout=8,
+            )
+            if r.ok and r.json().get("status") == "ok":
+                all_articles = [
+                    {"title": a.get("title", ""), "url": a.get("url", ""), "source": a.get("source", {}).get("name", "")}
+                    for a in r.json().get("articles", [])
+                    if a.get("title") and "[Removed]" not in a.get("title", "")
+                ]
+                filtered = _filter_by_relevance(all_articles, ticker, company_name)
+                if filtered:
+                    return filtered[:5]
+        except Exception:
+            pass
     return []
 
 
+# 종목명이 '네이버프리미엄'처럼 뉴스 플랫폼/서비스명의 일부로 쓰이는 접미사.
+# 검색 종목명이 제목에서 이 단어와 결합해 '출처'로만 등장하면 다른 종목 기사일 가능성이 높다.
+_PLATFORM_SUFFIXES = frozenset([
+    "프리미엄", "뉴스", "블로그", "카페", "증권", "경제", "부동산",
+    "엔터", "스포츠", "아트", "스타일", "쇼핑", "뷰",
+])
+
+# 제목에 포함되면 '다른 종목에 관한 기사'로 보는 주요 종목명.
+# 자체 플랫폼 기사(예: 네이버프리미엄의 SK하이닉스 분석)를 걸러내기 위한 참고 목록.
+_OTHER_STOCK_NAMES = frozenset([
+    "삼성전자", "SK하이닉스", "하이닉스", "카카오", "카카오뱅크", "셀트리온",
+    "LG에너지솔루션", "현대차", "기아", "포스코", "LG화학", "삼성바이오",
+    "NAVER", "네이버", "KB금융", "신한지주", "하나금융", "우리금융",
+    "삼성전우", "현대모비스", "셀트리온헬스케어", "삼성물산", "LG전자",
+])
+
+
+def _is_platform_context(title: str, company_name: str) -> bool:
+    """회사명이 제목에서 '네이버프리미엄'처럼 플랫폼 출처로만 쓰였는지 확인."""
+    name = (company_name or "").lower()
+    if not name:
+        return False
+    for suffix in _PLATFORM_SUFFIXES:
+        if f"{name}{suffix}" in title:
+            return True
+    return False
+
+
 def _filter_by_relevance(articles: list[dict], ticker: str, company_name: str) -> list[dict]:
-    """기사 제목에 종목명 또는 티커가 포함된 기사만 필터링."""
-    # 키워드 목록 구성 (대소문자 무시)
+    """기사 제목에 종목명/티커가 포함된 기사만 필터링.
+
+    - 제목에 종목명·티커가 없으면 제외.
+    - 종목명이 '네이버프리미엄'처럼 플랫폼 출처로만 등장하고, 제목에 다른 종목명이
+      보이면 다른 종목 기사로 판단해 제외 (예: 네이버프리미엄의 SK하이닉스 기사).
+    """
     keywords = set()
     if company_name:
-        # 회사명 전체 추가
         keywords.add(company_name.lower())
-        # 괄호 안의 약칭 추출 (예: "삼성전자(005930)" → "삼성전자")
         if "(" in company_name:
             short = company_name.split("(")[0].strip()
             if short:
@@ -271,9 +303,13 @@ def _filter_by_relevance(articles: list[dict], ticker: str, company_name: str) -
     result = []
     for a in articles:
         title = (a.get("title") or "").lower()
-        # 제목에 키워드 중 하나라도 포함되면 관련 기사로 판정
-        if any(kw in title for kw in keywords):
-            result.append(a)
+        if not any(kw in title for kw in keywords):
+            continue
+        # 플랫폼 출처 맥락 + 다른 종목명 → 다른 종목 기사로 간주
+        if company_name and _is_platform_context(title, company_name):
+            if any(other.lower() in title for other in _OTHER_STOCK_NAMES if other.lower() != company_name.lower()):
+                continue
+        result.append(a)
     return result
 
 
