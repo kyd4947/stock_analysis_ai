@@ -218,13 +218,90 @@ def _pick_today(candidates: list[dict], limit: int) -> list[dict]:
 
 # ── 공개 API ───────────────────────────────────────────────────────────────────
 
-def get_stock_news(ticker: str, company_name: str = "") -> list[dict]:
-    """종목 뉴스. 제목에 종목명/티커가 포함된 기사만 반환.
+# 한자 축약 표기 (언론 헤드라인에서 자주 사용).
+# 예: "HD현대중공업" → "HD현대重", "삼성전자" → "삼성電"
+_HANJA_ABBREV: dict[str, str] = {
+    "중공업": "重",
+    "전자": "電",
+    "철강": "鐵",
+    "화학": "化",
+    "지주": "持",
+    "건설": "建",
+    "해양": "海",
+    "조선": "造",
+    "산업": "産",
+    "물산": "物",
+    "제약": "藥",
+    "생명": "命",
+    "금융": "金",
+    "투자": "投",
+    "증권": "證",
+    "은행": "銀",
+    "보험": "保",
+    "자동차": "車",
+    "정유": "油",
+    "석유": "油",
+    "통신": "信",
+    "기계": "機",
+    "전기": "電",
+    "전선": "線",
+    "소재": "材",
+    "개발": "開",
+}
 
+# 한/영 별칭: 검색 종목명과 언론 표기가 다른 경우 대응.
+_NAME_ALIASES: dict[str, list[str]] = {
+    "NAVER": ["네이버"],
+    "네이버": ["NAVER"],
+    "S-Oil": ["에쓰오일"],
+    "삼성바이오로직스": ["삼성바이오"],
+    "HD현대중공업": ["현대중공업"],
+}
+
+# 원문 종목명에서 파생되는 표기 변형 목록을 생성.
+# - 한자 축약: "HD현대중공업" → "HD현대重"
+# - 별칭: "NAVER" → "네이버"
+def _name_variants(name: str) -> list[str]:
+    variants: list[str] = []
+    if not name:
+        return variants
+    variants.append(name)
+    lowered = name.lower()
+    # 별칭 추가
+    for key, alias_list in _NAME_ALIASES.items():
+        if key.lower() == lowered:
+            variants.extend(alias_list)
+    # 한자 축약: 뒤에서부터 매칭되는 도메인 단어를 한자로 치환
+    hanja_variant = name
+    replaced = False
+    for kor, hanja in _HANJA_ABBREV.items():
+        if kor != hanja and kor in hanja_variant:
+            hanja_variant = hanja_variant.replace(kor, hanja)
+            replaced = True
+    if replaced and hanja_variant != name:
+        variants.append(hanja_variant)
+    # 중복 제거
+    seen = set()
+    unique = []
+    for v in variants:
+        if v and v not in seen:
+            seen.add(v)
+            unique.append(v)
+    return unique
+
+
+def get_stock_news(ticker: str, company_name: str = "") -> list[dict]:
+    """종목 뉴스. 제목(출처 표기 제외)에 종목명/티커가 포함된 기사만 반환.
+
+    - 검색 쿼리는 종목명과 그 변형(한자 축약·한/영 별칭)만 사용한다.
+      '주가 주식'을 덧붙이면 파업·수주·공시처럼 제목에 '주가'가 없는
+      종목 뉴스가 누락되므로 붙이지 않는다.
     - 관련 기사가 없으면 빈 목록을 반환한다 (다른 종목 기사를 대신 노출하지 않음).
     """
     query = company_name or ticker
-    articles = _google_news_rss(f"{query} 주가 주식", limit=20)
+    variants = _name_variants(query)
+    search_query = " OR ".join(variants) if variants else query
+    articles = _google_news_rss(search_query, limit=20)
     if articles:
         filtered = _filter_by_relevance(articles, ticker, company_name)
         if filtered:
@@ -259,6 +336,60 @@ _PLATFORM_SUFFIXES = frozenset([
     "엔터", "스포츠", "아트", "스타일", "쇼핑", "뷰",
 ])
 
+# 출처명이 종목명과 겹치는 대표 자사 미디어.
+# 예: NAVER 종목 검색 시 '네이버 프리미엄콘텐츠'/'blog.naver.com'의 타종목 분석 기사가
+# 출처명에 '네이버'가 포함된다는 이유만으로 관련 기사로 오판되는 것을 방지한다.
+_PLATFORM_SOURCE_MARKERS = frozenset([
+    "네이버 프리미엄콘텐츠", "네이버 블로그", "blog.naver.com", "네이버 프리미엄",
+    "kb think", "kb씽크", "네이버프리미엄콘텐츠",
+])
+
+
+def _strip_source_suffix(title: str, source: str) -> str:
+    """RSS 제목에서 ' - 출처' / ' : 출처' 꼬리와 플랫폼 꼬리를 제거한 순수 헤드라인 반환.
+
+    Google News RSS 제목 형식은 "헤드라인 - 출처명"이며, 블로그 계열은
+    "헤드라인 : 네이버 블로그 - blog.naver.com"처럼 꼬리가 이중으로 붙는다.
+    출처명에 종목명(예: '네이버')이 포함된 경우 관련성 오판의 원인이 되므로
+    제목에서 출처 부분을 떼어내고 헤드라인만으로 판정한다.
+    """
+    t = title
+    src = (source or "").strip()
+    if src:
+        # "헤드라인 - 출처" / "헤드라인 : 출처" 제거 (마지막 등장 위치 기준)
+        for sep in (" - ", " : ", " | "):
+            idx = t.rfind(f"{sep}{src}")
+            if idx > 0:
+                t = t[:idx]
+                break
+        # "네이버 블로그 - blog.naver.com" 같은 이중 꼬리 제거
+        for marker in _PLATFORM_SOURCE_MARKERS:
+            marker_low = marker.lower()
+            for sep in (" - ", " : ", " | "):
+                idx = t.lower().rfind(f"{sep}{marker_low}")
+                if idx > 0:
+                    t = t[:idx]
+    return t.strip()
+
+
+def _is_platform_source(source: str) -> bool:
+    """출처 자체가 종목명과 겹치는 자사/플랫폼 미디어인지 확인."""
+    src = (source or "").lower()
+    if not src:
+        return False
+    return any(marker in src for marker in _PLATFORM_SOURCE_MARKERS)
+
+
+def _is_platform_context(title: str, company_name: str) -> bool:
+    """회사명이 제목에서 '네이버프리미엄'처럼 플랫폼 출처로만 쓰였는지 확인."""
+    name = (company_name or "").lower()
+    if not name:
+        return False
+    for suffix in _PLATFORM_SUFFIXES:
+        if f"{name}{suffix}" in title:
+            return True
+    return False
+
 # 제목에 포함되면 '다른 종목에 관한 기사'로 보는 주요 종목명.
 # 자체 플랫폼 기사(예: 네이버프리미엄의 SK하이닉스 분석)를 걸러내기 위한 참고 목록.
 _OTHER_STOCK_NAMES = frozenset([
@@ -283,31 +414,37 @@ def _is_platform_context(title: str, company_name: str) -> bool:
 def _filter_by_relevance(articles: list[dict], ticker: str, company_name: str) -> list[dict]:
     """기사 제목에 종목명/티커가 포함된 기사만 필터링.
 
-    - 제목에 종목명·티커가 없으면 제외.
+    - 매칭은 출처 표기(" - 출처명")를 제거한 순수 헤드라인 기준으로 한다.
+      출처명에 종목명이 포함됨(예: '네이버 프리미엄콘텐츠', 'KB Think')만으로는
+      관련 기사로 보지 않는다.
+    - 한자 축약 표기(HD현대重)와 한/영 별칭(NAVER↔네이버)도 키워드로 인정.
     - 종목명이 '네이버프리미엄'처럼 플랫폼 출처로만 등장하고, 제목에 다른 종목명이
-      보이면 다른 종목 기사로 판단해 제외 (예: 네이버프리미엄의 SK하이닉스 기사).
+      보이면 다른 종목 기사로 판단해 제외한다.
     """
     keywords = set()
     if company_name:
-        keywords.add(company_name.lower())
-        if "(" in company_name:
-            short = company_name.split("(")[0].strip()
-            if short:
-                keywords.add(short.lower())
+        for v in _name_variants(company_name):
+            keywords.add(v.lower())
     if ticker:
         keywords.add(ticker.lower())
 
     if not keywords:
         return articles
 
+    # 다른 종목명 감지용: 키워드와 무관한 타 종목명은 그대로 사용
+    other_names = [o for o in _OTHER_STOCK_NAMES if o.lower() not in keywords]
+
     result = []
     for a in articles:
-        title = (a.get("title") or "").lower()
-        if not any(kw in title for kw in keywords):
+        source = a.get("source") or ""
+        headline = _strip_source_suffix(a.get("title") or "", source).lower()
+        # 자사 플랫폼 출처 기사는 헤드라인에 종목명이 직접 언급될 때만 허용
+        # (헤드라인 매칭 아래 단계에서 자연스럽게 처리됨)
+        if not any(kw in headline for kw in keywords):
             continue
         # 플랫폼 출처 맥락 + 다른 종목명 → 다른 종목 기사로 간주
-        if company_name and _is_platform_context(title, company_name):
-            if any(other.lower() in title for other in _OTHER_STOCK_NAMES if other.lower() != company_name.lower()):
+        if company_name and (_is_platform_context(headline, company_name) or _is_platform_source(source)):
+            if any(other.lower() in headline for other in other_names):
                 continue
         result.append(a)
     return result
