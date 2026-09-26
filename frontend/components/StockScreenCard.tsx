@@ -718,7 +718,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
                 <p className="leading-5 text-slate-600">단기(12일)·장기(26일) 이동평균선의 차이를 추세로 해석하는 지표입니다. 시그널선(9일)과의 교차점에서 매매 신호를 포착합니다.</p>
                 <div className="space-y-1 rounded-lg bg-white p-2.5">
                   <div className="flex justify-between"><span className="font-mono text-slate-500">MACD > Signal</span><span className="font-semibold text-rose-700">상승 추세 (매수 신호)</span></div>
-                  <div className="flex justify-between"><span className="font-mono text-slate-500">MACD < Signal</span><span className="font-semibold text-blue-700">하락 추세 (매도 신호)</span></div>
+                  <div className="flex justify-between"><span className="font-mono text-slate-500">MACD &lt; Signal</span><span className="font-semibold text-blue-700">하락 추세 (매도 신호)</span></div>
                   <div className="flex justify-between"><span className="font-mono text-slate-500">히스토그램</span><span className="font-semibold text-slate-700">MACD-Signal 차이 (모멘텀 강도)</span></div>
                 </div>
                 <p className="text-slate-500">현재: MACD <span className="font-bold text-slate-900">{item.price_history.macd.macd}</span>, Signal <span className="font-bold text-slate-900">{item.price_history.macd.signal}</span> → {item.price_history.macd.histogram > 0 ? "상승 추세 유지" : "하락 추세 유지"}</p>
