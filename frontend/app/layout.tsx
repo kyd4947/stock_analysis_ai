@@ -57,7 +57,7 @@ export function useSearchContext() {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [authenticated, setAuthenticated] = useState(true); // TEMP-PREVIEW
+  const [authenticated, setAuthenticated] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
