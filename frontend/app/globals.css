@@ -25,28 +25,39 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-up: var(--up);
+  --color-up-soft: var(--up-soft);
+  --color-down: var(--down);
+  --color-down-soft: var(--down-soft);
 }
 
 :root {
-  --radius: 0.5rem;
-  --background: oklch(0.975 0.006 255);
-  --foreground: oklch(0.2 0.028 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.028 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.028 260);
-  --primary: oklch(0.23 0.03 260);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.95 0.008 255);
-  --secondary-foreground: oklch(0.28 0.028 260);
-  --muted: oklch(0.94 0.008 255);
-  --muted-foreground: oklch(0.52 0.028 260);
-  --accent: oklch(0.93 0.01 255);
-  --accent-foreground: oklch(0.25 0.03 260);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.88 0.01 255);
-  --input: oklch(0.88 0.01 255);
-  --ring: oklch(0.42 0.03 260);
+  --radius: 0.75rem;
+
+  --background: #f6f7f9;
+  --foreground: #1b2530;
+  --card: #ffffff;
+  --card-foreground: #1b2530;
+  --popover: #ffffff;
+  --popover-foreground: #1b2530;
+  --primary: #047857;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f4;
+  --secondary-foreground: #1b2530;
+  --muted: #f1f3f6;
+  --muted-foreground: #64737f;
+  --accent: #e9f5ef;
+  --accent-foreground: #065f46;
+  --destructive: #e11d48;
+  --border: #e5e8ec;
+  --input: #d8dee5;
+  --ring: #047857;
+
+  /* 한국 증시 표기 규칙: 상승 레드 / 하락 블루 */
+  --up: #e11d48;
+  --up-soft: #fff1f2;
+  --down: #2563eb;
+  --down-soft: #eff6ff;
 }
 
 @layer base {
@@ -60,14 +71,35 @@
     margin: 0;
   }
 
+  html,
+  body {
+    font-family:
+      "Pretendard Variable",
+      Pretendard,
+      -apple-system,
+      "Apple SD Gothic Neo",
+      "Segoe UI",
+      Roboto,
+      "Noto Sans KR",
+      "Malgun Gothic",
+      sans-serif;
+  }
+
   body {
     background: var(--background);
     color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
   button,
   input {
     letter-spacing: 0;
+  }
+
+  ::selection {
+    background: rgba(4, 120, 87, 0.16);
   }
 }
 
@@ -81,16 +113,53 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.75 0.02 255);
+  background: #cbd5e1;
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.62 0.025 255);
+  background: #94a3b8;
   border: 2px solid transparent;
   background-clip: content-box;
+}
+
+@layer utilities {
+  /* 카드용 부드러운 겹칩 그림자 */
+  .shadow-card {
+    box-shadow:
+      0 1px 2px rgba(23, 33, 43, 0.05),
+      0 1px 3px rgba(23, 33, 43, 0.06);
+  }
+
+  /* 드롭다운·모달용 그림자 */
+  .shadow-pop {
+    box-shadow:
+      0 4px 6px -1px rgba(23, 33, 43, 0.08),
+      0 2px 4px -2px rgba(23, 33, 43, 0.06),
+      0 16px 32px -12px rgba(23, 33, 43, 0.14);
+  }
+
+  /* 시장 해석 카드용 딥 그린-잉크 그라디언트 */
+  .bg-ink {
+    background:
+      radial-gradient(120% 140% at 100% 0%, rgba(6, 95, 70, 0.4) 0%, transparent 55%),
+      linear-gradient(135deg, #16202e 0%, #10231e 60%, #0b2a20 100%);
+  }
+
+  /* 다크 카드 위 도트 패턴 (absolute 오버레이용) */
+  .bg-dotgrid {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1.2px);
+    background-size: 16px 16px;
+  }
+
+  /* 로그인 화면 배경 */
+  .bg-paper {
+    background:
+      radial-gradient(80% 55% at 50% 0%, rgba(4, 120, 87, 0.08) 0%, transparent 60%),
+      var(--background);
+  }
 }
 
 /* ── 모바일 터치 최적화 ── */

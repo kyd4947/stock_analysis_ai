@@ -4,7 +4,6 @@ import React, { useEffect } from "react";
 import {
   Activity,
   BarChart3,
-  ChevronLeft,
   ChevronRight,
   DollarSign,
   Landmark,
@@ -15,7 +14,6 @@ import {
   PanelLeftOpen,
   Search,
   Settings2,
-  Sparkles,
   Star,
   TrendingDown,
   Users,
@@ -25,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { MacroSnapshot, EmploymentIndicator } from "@/lib/api";
 import { StockSearchBox } from "@/components/StockSearchBox";
+import { LogoBadge } from "@/components/Logo";
 
 export type NavItem = "analysis" | "watchlist" | "profile";
 
@@ -139,7 +138,7 @@ function MacroPanel({
           <div
             key={row.label}
             title={error ? `${row.label}: API 연결 안 됨` : `${row.label}: ${row.value}${row.unit}`}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-card"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <row.icon className="h-4 w-4" />}
           </div>
@@ -149,28 +148,34 @@ function MacroPanel({
   }
 
   return (
-    <section className="mx-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+    <section className="mx-3 rounded-xl border border-slate-200/70 bg-slate-50/80 p-3.5">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs font-semibold text-slate-500">시장 스냅샷</p>
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
             error ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
           )}
         >
-          {error ? "API OFF" : "Live"}
+          {!error && (
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          </span>
+          )}
+          {error ? "연결 끊김" : "실시간"}
         </span>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {rows.map((row) => (
           <div key={row.label} className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
-                <row.icon className="h-4 w-4" />
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 ring-1 ring-slate-200/70">
+                <row.icon className="h-3.5 w-3.5" />
               </div>
               <span className="truncate text-xs font-medium text-slate-500">{row.label}</span>
             </div>
-            <div className="flex items-baseline gap-1 text-sm font-bold text-slate-900">
+            <div className="flex items-baseline gap-1 text-sm font-bold tabular-nums text-slate-900">
               {loading ? <Loader2 className="h-4 w-4 animate-spin text-slate-400" /> : error ? "-" : row.value}
               {!loading && !error && <span className="text-[11px] font-medium text-slate-400">{row.unit}</span>}
             </div>
@@ -179,7 +184,7 @@ function MacroPanel({
 
         {fearItems.length > 0 && (
           <>
-            <div className="my-1 border-t border-slate-100" />
+            <div className="my-1 border-t border-slate-200/70" />
             {fearItems.map((item) => {
               const isExpanded = expandedFear === item.key;
               return (
@@ -187,21 +192,21 @@ function MacroPanel({
                   <button
                     type="button"
                     onClick={() => setExpandedFear(isExpanded ? null : item.key)}
-                    className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-1 text-left transition-colors hover:bg-slate-50"
+                    className="flex w-full items-center justify-between gap-3 rounded-lg px-1 py-1 text-left transition-colors hover:bg-white/70"
                   >
                     <div className="flex min-w-0 items-center gap-2">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
-                        <Activity className="h-4 w-4" />
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 ring-1 ring-slate-200/70">
+                        <Activity className="h-3.5 w-3.5" />
                       </div>
                       <span className="truncate text-xs font-medium text-slate-500">{item.label}</span>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-sm font-bold text-slate-900">{item.value.toFixed(2)}</span>
+                      <span className="text-sm font-bold tabular-nums text-slate-900">{item.value.toFixed(2)}</span>
                       <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${item.signal.cls}`}>{item.signal.sig}</span>
                     </div>
                   </button>
                   {isExpanded && (
-                    <div className="ml-10 mt-1 mb-2 space-y-2 rounded-md bg-slate-50 p-2.5 text-xs">
+                    <div className="ml-9 mt-1 mb-2 space-y-2 rounded-lg border border-slate-200/70 bg-white p-2.5 text-xs">
                       <div>
                         <p className="font-semibold text-slate-700 mb-1">해석 기준</p>
                         <div className="space-y-0.5">
@@ -213,7 +218,7 @@ function MacroPanel({
                           ))}
                         </div>
                       </div>
-                      <div className="border-t border-slate-200 pt-2">
+                      <div className="border-t border-slate-100 pt-2">
                         <p className="font-semibold text-slate-700 mb-0.5">현재 상태</p>
                         <p className="text-slate-600 leading-5">{item.signal.desc}</p>
                       </div>
@@ -227,7 +232,7 @@ function MacroPanel({
 
         {empEntries.length > 0 && (
           <>
-            <div className="my-1 border-t border-slate-100" />
+            <div className="my-1 border-t border-slate-200/70" />
             {empEntries.map((ind) => {
               const signalCls =
                 ind.signal === "호재"
@@ -241,13 +246,13 @@ function MacroPanel({
               return (
                 <div key={ind.label} className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
-                      <ind.icon className="h-4 w-4" />
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 ring-1 ring-slate-200/70">
+                      <ind.icon className="h-3.5 w-3.5" />
                     </div>
                     <span className="truncate text-xs font-medium text-slate-500">{ind.label}</span>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="text-sm font-bold text-slate-900">
+                    <span className="text-sm font-bold tabular-nums text-slate-900">
                       {valueStr}
                       <span className="ml-0.5 text-[11px] font-medium text-slate-400">{ind.unit}</span>
                     </span>
@@ -293,7 +298,7 @@ export function AppSidebar({
       {/* 모바일 오버레이 배경 */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[2px] lg:hidden"
           onClick={onMobileToggle}
         />
       )}
@@ -302,32 +307,30 @@ export function AppSidebar({
       <button
         type="button"
         onClick={onMobileToggle}
-        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm lg:hidden"
+        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-card transition-colors hover:bg-slate-50 lg:hidden"
       >
         {mobileOpen ? <X className="h-5 w-5 text-slate-600" /> : <Menu className="h-5 w-5 text-slate-600" />}
       </button>
 
       <aside
         className={cn(
-          "flex h-[100dvh] shrink-0 flex-col border-r border-slate-200 bg-slate-50/95 shadow-[1px_0_0_rgba(15,23,42,0.03)] transition-all duration-200 overflow-y-auto",
+          "flex h-[100dvh] shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-200 overflow-y-auto",
           // 모바일: 오버레이 드로어
           "fixed inset-y-0 left-0 z-50 lg:static lg:z-auto",
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          mobileOpen ? "translate-x-0 shadow-pop" : "-translate-x-full lg:translate-x-0 lg:shadow-none",
           collapsed ? "w-[72px]" : "w-[292px]"
         )}
       >
       <button
         type="button"
         onClick={() => onLogoClick ? onLogoClick() : onNavChange("analysis")}
-        className={cn("flex w-full items-center gap-3 px-3 py-4 transition-opacity hover:opacity-75", collapsed && "justify-center")}
+        className={cn("flex w-full items-center gap-3 px-4 py-5 transition-opacity hover:opacity-80", collapsed && "justify-center px-0")}
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-sm">
-          <Sparkles className="h-4 w-4" />
-        </div>
+        <LogoBadge />
         {!collapsed && (
           <div className="min-w-0 text-left">
-            <h1 className="truncate text-sm font-bold text-slate-950">Stock Analysis AI</h1>
-            <p className="text-xs text-slate-500">거시경제 기반 투자 분석</p>
+            <h1 className="truncate text-[15px] font-bold tracking-tight text-slate-900">Stock Analysis AI</h1>
+            <p className="text-xs text-slate-400">거시경제 기반 투자 분석</p>
           </div>
         )}
       </button>
@@ -339,7 +342,7 @@ export function AppSidebar({
           onClick={onToggleCollapse}
           title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
           className={cn(
-            "h-9 w-full border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-100",
+            "h-9 w-full rounded-lg border-slate-200 bg-white text-slate-500 shadow-card hover:bg-slate-50 hover:text-slate-700",
             collapsed ? "px-0" : "justify-between px-3"
           )}
         >
@@ -349,7 +352,7 @@ export function AppSidebar({
       </div>
 
       <nav className={cn("mt-4 space-y-1 px-3", collapsed && "px-2")}>
-        {!collapsed && <p className="px-2 pb-1 text-[11px] font-semibold uppercase text-slate-400">Menu</p>}
+        {!collapsed && <p className="px-2 pb-1.5 text-[11px] font-semibold text-slate-400">메뉴</p>}
         {NAV_ITEMS.map(({ id, label, helper, icon: Icon }) => {
           const active = activeNav === id;
           return (
@@ -359,23 +362,23 @@ export function AppSidebar({
               title={collapsed ? label : undefined}
               onClick={() => onNavChange(id)}
               className={cn(
-                "group flex w-full items-center rounded-lg text-left transition-colors",
-                collapsed ? "h-10 justify-center px-0" : "h-12 gap-3 px-3",
+                "group flex w-full items-center rounded-xl text-left transition-colors",
+                collapsed ? "h-10 justify-center px-0" : "h-[52px] gap-3 px-3",
                 active
-                  ? "bg-slate-950 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-white hover:text-slate-950 hover:shadow-sm"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-slate-600 hover:bg-slate-50"
               )}
             >
-              <Icon className={cn("h-4 w-4 shrink-0", active ? "text-white" : "text-slate-500")} />
+              <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-primary" : "text-slate-400 group-hover:text-slate-600")} />
               {!collapsed && (
                 <>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{label}</span>
-                    <span className={cn("block truncate text-xs", active ? "text-slate-300" : "text-slate-400")}>
+                    <span className={cn("block truncate text-sm", active ? "font-bold text-accent-foreground" : "font-semibold")}>{label}</span>
+                    <span className={cn("block truncate text-xs", active ? "text-emerald-700/60" : "text-slate-400")}>
                       {helper}
                     </span>
                   </span>
-                  {active ? <ChevronRight className="h-4 w-4 text-slate-300" /> : null}
+                  {active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
                 </>
               )}
             </button>
@@ -395,7 +398,7 @@ export function AppSidebar({
             size="icon"
             title="종목 검색"
             onClick={onToggleCollapse}
-            className="h-10 w-10 border-slate-200 bg-white text-slate-600 shadow-sm"
+            className="h-10 w-10 rounded-lg border-slate-200 bg-white text-slate-500 shadow-card"
           >
             <Search className="h-4 w-4" />
           </Button>
@@ -415,11 +418,11 @@ export function AppSidebar({
           <button
             type="button"
             onClick={() => onNavChange("profile")}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-500 hover:bg-white hover:text-slate-950"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
           >
             <Settings2 className="h-4 w-4" />
             분석 설정
-            <ChevronLeft className="ml-auto h-4 w-4 rotate-180 text-slate-300" />
+            <ChevronRight className="ml-auto h-4 w-4 text-slate-300" />
           </button>
         </div>
       )}

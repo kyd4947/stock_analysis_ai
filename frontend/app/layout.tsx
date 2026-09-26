@@ -20,6 +20,9 @@ const DEFAULT_USER_PROFILE: UserProfileType = {
   horizon: "mid",
 };
 
+const PRETENDARD_CDN =
+  "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css";
+
 export type SearchContextType = {
   screenResult: ScreenResponse | null;
   screenLoading: boolean;
@@ -196,7 +199,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   if (!authChecked) {
     return (
       <html lang="ko" className="h-full">
-        <body className="h-full bg-slate-100" />
+        <body className="h-full bg-background text-foreground antialiased">
+          <link rel="stylesheet" href={PRETENDARD_CDN} />
+        </body>
       </html>
     );
   }
@@ -204,7 +209,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   if (!authenticated) {
     return (
       <html lang="ko" className="h-full">
-        <body className="h-full bg-slate-100">
+        <body className="h-full bg-background text-foreground antialiased">
+          <link rel="stylesheet" href={PRETENDARD_CDN} />
           <LoginPage onLogin={() => { setAuthenticated(true); }} />
         </body>
       </html>
@@ -213,7 +219,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="ko" className="h-full">
-      <body className="h-full overflow-hidden bg-slate-100 text-slate-950 antialiased">
+      <body className="h-full overflow-hidden bg-background text-foreground antialiased">
+        <link rel="stylesheet" href={PRETENDARD_CDN} />
         <div className="flex h-[100dvh] w-full overflow-hidden">
           <AppSidebar
             collapsed={collapsed}

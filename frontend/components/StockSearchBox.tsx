@@ -116,17 +116,17 @@ export function StockSearchBox({
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
-              className="h-10 border-slate-200 bg-white text-sm shadow-sm focus-visible:ring-slate-400"
+              className="h-10 rounded-lg border-slate-200 bg-white text-sm shadow-card focus-visible:ring-primary/30"
             />
             {searching && (
-              <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-slate-400" />
+              <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-slate-400" />
             )}
           </div>
           <Button
             type="submit"
             size="icon"
             disabled={loading || !query.trim()}
-            className="h-10 w-10 shrink-0 bg-slate-950 text-white hover:bg-slate-800"
+            className="h-10 w-10 shrink-0 rounded-lg"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -140,8 +140,8 @@ export function StockSearchBox({
       {open && results.length > 0 && (
         <div
           className={cn(
-            "absolute left-0 right-0 z-50 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl",
-            dropUp ? "bottom-full mb-1" : "top-full mt-1"
+            "absolute left-0 right-0 z-50 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-pop",
+            dropUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
           )}
         >
           {results.map((r, i) => (
@@ -150,13 +150,18 @@ export function StockSearchBox({
               type="button"
               onMouseDown={() => select(r)}
               className={cn(
-                "flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors",
-                i === focusedIdx ? "bg-slate-100" : "hover:bg-slate-50",
+                "flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition-colors",
+                i === focusedIdx ? "bg-accent" : "hover:bg-slate-50",
                 i !== results.length - 1 && "border-b border-slate-100"
               )}
             >
-              <span className="text-sm font-semibold text-slate-950">{r.name}</span>
-              <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500">
+              <span className="text-sm font-semibold text-slate-900">{r.name}</span>
+              <span
+                className={cn(
+                  "shrink-0 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold",
+                  i === focusedIdx ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                )}
+              >
                 {r.ticker}
               </span>
             </button>
