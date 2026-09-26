@@ -205,10 +205,10 @@ function CollapsibleSection({ title, defaultOpen = true, children }: { title: st
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 sm:pointer-events-none sm:cursor-default"
+        className="flex w-full items-center justify-between gap-2 text-left"
       >
         <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-        <ChevronDown className={`h-4 w-4 text-slate-400 sm:hidden transition-transform ${open ? "" : "-rotate-90"}`} />
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-300 transition-transform ${open ? "" : "-rotate-90"}`} />
       </button>
       {open && <div className="mt-3">{children}</div>}
     </section>
@@ -754,7 +754,7 @@ export function StockScreenCard({ item, compact = false, onSelect }: StockScreen
 
         {/* 거시경제 지표 */}
         {item.macro && (
-          <CollapsibleSection title="거시경제 지표" defaultOpen={false}>
+          <CollapsibleSection title="거시경제 지표">
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               <div className="rounded-xl border border-slate-200/80 bg-white p-3.5">
                 <p className="text-[11px] font-semibold text-slate-400">USD/KRW</p>
