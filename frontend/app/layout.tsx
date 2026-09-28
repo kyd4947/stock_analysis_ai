@@ -7,6 +7,9 @@ import { fetchMacro, screenStocks } from "@/lib/api";
 import type { MacroSnapshot, ScreenResponse } from "@/lib/api";
 import "./globals.css";
 
+const PRETENDARD_CDN =
+  "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css";
+
 export type UserProfileType = {
   risk_tolerance: "low" | "medium" | "high";
   preferred_style: Array<"lowPER" | "lowPBR" | "highROE" | "value" | "quality" | "quant">;
@@ -190,7 +193,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="ko" className="h-full">
-      <body className="h-full overflow-hidden bg-slate-100 text-slate-950 antialiased">
+      <body className="h-full overflow-hidden bg-background text-foreground antialiased">
+        <link rel="stylesheet" href={PRETENDARD_CDN} />
         <div className="flex h-[100dvh] w-full overflow-hidden">
           <AppSidebar
             collapsed={collapsed}

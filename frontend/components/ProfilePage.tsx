@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, Clock, Save, ShieldCheck, TrendingUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSearchContext } from "@/app/layout";
@@ -66,27 +65,24 @@ export function ProfilePage() {
   const isDirty = JSON.stringify(local) !== JSON.stringify(userProfile);
 
   return (
-    <div className="min-h-full bg-slate-100">
-      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6">
+    <div className="min-h-full bg-background">
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-5 sm:px-6 lg:py-7">
 
-        <header className="border-b border-slate-200 pb-4 sm:pb-5">
-          <div className="mb-2 flex items-center gap-2">
-            <Badge className="border-0 bg-slate-950 text-white">투자 프로필</Badge>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">나의 투자 성향</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+        <header>
+          <h1 className="text-[22px] font-bold tracking-tight text-slate-900 sm:text-[28px]">나의 투자 성향</h1>
+          <p className="mt-1.5 text-sm leading-6 text-slate-500">
             설정한 투자 성향이 AI 분석 점수와 종목 추천에 반영됩니다.
           </p>
         </header>
 
         <div className="space-y-5">
           {/* 리스크 허용도 */}
-          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-950">
-              <ShieldCheck className="h-5 w-5 text-slate-700" />
+          <div className="rounded-xl border border-slate-200/80 bg-card p-5 shadow-card">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900">
+              <ShieldCheck className="h-[18px] w-[18px] text-primary" />
               리스크 허용도
             </h2>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               {RISK_OPTIONS.map((opt) => {
                 const active = local.risk_tolerance === opt.id;
                 return (
@@ -95,17 +91,17 @@ export function ProfilePage() {
                     type="button"
                     onClick={() => setLocal((p) => ({ ...p, risk_tolerance: opt.id }))}
                     className={cn(
-                      "rounded-lg border p-3 text-left transition-colors sm:p-4",
+                      "rounded-xl border p-4 text-left transition-all",
                       active
-                        ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        ? "border-primary bg-primary text-white shadow-card"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                     )}
                   >
                     <p className="text-sm font-bold">{opt.label}</p>
                     <p
                       className={cn(
                         "mt-1 text-xs leading-5",
-                        active ? "text-slate-300" : "text-slate-400"
+                        active ? "text-emerald-100" : "text-slate-400"
                       )}
                     >
                       {opt.desc}
@@ -117,9 +113,9 @@ export function ProfilePage() {
           </div>
 
           {/* 투자 스타일 */}
-          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-950">
-              <TrendingUp className="h-5 w-5 text-slate-700" />
+          <div className="rounded-xl border border-slate-200/80 bg-card p-5 shadow-card">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900">
+              <TrendingUp className="h-[18px] w-[18px] text-primary" />
               투자 스타일
               <span className="text-xs font-normal text-slate-400">(복수 선택 가능)</span>
             </h2>
@@ -132,15 +128,15 @@ export function ProfilePage() {
                       type="button"
                       onClick={() => toggleStyle(opt.id)}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors",
+                        "flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-all",
                         active
-                          ? "border-slate-950 bg-slate-950 font-semibold text-white shadow-sm"
-                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          ? "border-primary bg-primary font-semibold text-white shadow-card"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                       )}
                     >
-                      {active && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+                      {active && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />}
                       <span>{opt.label}</span>
-                      <span className={cn("text-xs", active ? "text-slate-300" : "text-slate-400")}>
+                      <span className={cn("text-xs", active ? "text-emerald-100" : "text-slate-400")}>
                         {opt.desc}
                       </span>
                     </button>
@@ -156,12 +152,12 @@ export function ProfilePage() {
           </div>
 
           {/* 투자 기간 */}
-          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-950">
-              <Clock className="h-5 w-5 text-slate-700" />
+          <div className="rounded-xl border border-slate-200/80 bg-card p-5 shadow-card">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900">
+              <Clock className="h-[18px] w-[18px] text-primary" />
               투자 기간
             </h2>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               {HORIZON_OPTIONS.map((opt) => {
                 const active = local.horizon === opt.id;
                 return (
@@ -170,17 +166,17 @@ export function ProfilePage() {
                     type="button"
                     onClick={() => setLocal((p) => ({ ...p, horizon: opt.id }))}
                     className={cn(
-                      "rounded-lg border p-3 text-left transition-colors sm:p-4",
+                      "rounded-xl border p-4 text-left transition-all",
                       active
-                        ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        ? "border-primary bg-primary text-white shadow-card"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                     )}
                   >
                     <p className="text-sm font-bold">{opt.label}</p>
                     <p
                       className={cn(
                         "mt-1 text-xs",
-                        active ? "text-slate-300" : "text-slate-400"
+                        active ? "text-emerald-100" : "text-slate-400"
                       )}
                     >
                       {opt.desc}
@@ -196,13 +192,13 @@ export function ProfilePage() {
           onClick={handleSave}
           disabled={!isDirty && !saved}
           className={cn(
-            "h-11 transition-colors",
+            "h-11 rounded-xl text-[15px] font-semibold transition-colors",
             saved
               ? "bg-emerald-600 text-white hover:bg-emerald-700"
-              : "bg-slate-950 text-white hover:bg-slate-800 disabled:opacity-50"
+              : "disabled:opacity-50"
           )}
         >
-          <Save className="mr-2 h-4 w-4" />
+          <Save className="mr-1 h-4 w-4" />
           {saved ? "저장됨! 다음 분석부터 반영됩니다" : "프로필 저장"}
         </Button>
       </div>
