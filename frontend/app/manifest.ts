@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "거시경제 기반 AI 투자 분석",
     start_url: "/",
     display: "standalone",
-    background_color: "#f1f5f9",
-    theme_color: "#0f172a",
+    background_color: "#f6f7f9",
+    theme_color: "#047857",
     icons: [
       { src: "/icon", sizes: "32x32", type: "image/png" },
       { src: "/apple-icon", sizes: "180x180", type: "image/png" },

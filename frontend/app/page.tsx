@@ -4,21 +4,15 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
-  BarChart3,
-  BrainCircuit,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Layers,
-  LineChart,
+  Lightbulb,
   Loader2,
-  MessageSquare,
-  Sparkles,
-  TrendingUp,
+  Plus,
   XCircle,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { fetchMarketNews, fetchMarketInsight, fetchPrices, fetchRecommendation } from "@/lib/api";
 import type { MarketInsight, RecommendResult } from "@/lib/api";
 import { StockScreenCard } from "@/components/StockScreenCard";
@@ -100,6 +94,23 @@ const signals = [
 ];
 
 type NewsArticle = { title: string; url: string; source: string; publishedAt?: string };
+
+/** 상승/하락 통일 표기 (한국 증시 규칙: 상승 레드 / 하락 블루) */
+function ChangePill({ change, positive, size = "sm" }: { change: string; positive: boolean; size?: "sm" | "md" }) {
+  const Icon = positive ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-md font-bold tabular-nums",
+        size === "md" ? "px-2 py-1 text-xs" : "px-1.5 py-0.5 text-[11px]",
+        positive ? "bg-up-soft text-up" : "bg-down-soft text-down"
+      )}
+    >
+      <Icon className={size === "md" ? "h-3.5 w-3.5" : "h-3 w-3"} />
+      {change}
+    </span>
+  );
+}
 
 export default function Page() {
   const [dashboardItems, setDashboardItems] = useState<DashboardItem[]>(SAMPLE_ITEMS);
@@ -313,26 +324,16 @@ export default function Page() {
   const showDashboard = !screenLoading && !screenResult && !screenError;
 
   return (
-    <div className="min-h-full bg-slate-100">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 lg:px-8">
+    <div className="min-h-full bg-background">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 lg:px-8 lg:py-7">
 
         {/* ── 헤더 ── */}
-        <header className="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center lg:justify-between">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Badge className="border-0 bg-slate-950 text-white">AI 투자 분석</Badge>
-              <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 sm:text-sm">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                </span>
-                실시간 시장 컨텍스트 반영
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+            <h1 className="text-[22px] font-bold tracking-tight text-slate-900 sm:text-[28px]">
               {hasResult && lastTicker ? `${lastTicker} 종목 AI 분석` : "오늘의 투자 대시보드"}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-500">
               {hasResult && lastTicker
                 ? "거시경제 지표, 재무, 공시 데이터를 종합한 AI 분석 리포트입니다."
                 : "종목 가격, 거시경제 지표, 뉴스 흐름을 한 화면에서 확인하고 AI 스코어로 우선순위를 정리합니다."}
@@ -340,80 +341,67 @@ export default function Page() {
           </div>
           <div className="flex items-center gap-2">
             <Button
-              className="h-10 bg-slate-950 px-4 text-white hover:bg-slate-800"
+              className="h-10 rounded-lg px-4"
               onClick={() => clearResult?.()}
             >
-              <Sparkles className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
               새 분석 시작
             </Button>
           </div>
         </header>
 
         {/* ── 시장 지수 카드 ── */}
-        <div className="space-y-2">
-          {/* 한국 지수 */}
-          <section className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-            {marketCards.map((card) => (
-              <div key={card.label} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-500">{card.label}</span>
-                  {card.change !== "—" && (
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${card.positive ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>
-                      {card.positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                      {card.change}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-3 text-xl font-bold text-slate-950 sm:text-2xl">{card.value}</p>
+        <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-3">
+          {marketCards.map((card) => (
+            <div key={card.label} className="rounded-xl border border-slate-200/80 bg-card p-3.5 shadow-card sm:p-4">
+              <p className="text-xs font-semibold text-slate-400">{card.label}</p>
+              <div className="mt-2 flex items-baseline justify-between gap-2">
+                <p className="text-lg font-bold tabular-nums text-slate-900 sm:text-xl">{card.value}</p>
+                {card.change !== "—" && <ChangePill change={card.change} positive={card.positive} />}
               </div>
-            ))}
-          </section>
-          {/* 미국 지수 */}
-          <section className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-            {usMarketCards.map((card) => (
-              <div key={card.label} className="rounded-lg border border-slate-100 bg-slate-50 p-3 shadow-sm sm:p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-400">{card.label}</span>
-                  {card.change !== "—" && (
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${card.positive ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>
-                      {card.positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      {card.change}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-3 text-lg font-bold text-slate-700 sm:text-xl">{card.value}</p>
+            </div>
+          ))}
+          {usMarketCards.map((card) => (
+            <div key={card.label} className="rounded-xl border border-slate-200/60 bg-white/70 p-3.5 sm:p-4">
+              <p className="text-xs font-semibold text-slate-400">{card.label}</p>
+              <div className="mt-2 flex items-baseline justify-between gap-2">
+                <p className="text-lg font-bold tabular-nums text-slate-600 sm:text-xl">{card.value}</p>
+                {card.change !== "—" && <ChangePill change={card.change} positive={card.positive} />}
               </div>
-            ))}
-          </section>
-        </div>
+            </div>
+          ))}
+        </section>
 
         {/* ── 분석 로딩 중 ── */}
         {screenLoading && (
-          <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-slate-200 bg-white py-20 shadow-sm">
-            <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
-            <p className="text-sm font-semibold text-slate-500">
-              <span className="font-bold text-slate-950">{lastTicker}</span> 종목을 AI가 분석
-              중입니다...
-            </p>
-            <p className="text-xs text-slate-400">
-              거시경제, 재무지표, 공시 데이터를 수집하고 있습니다.
-            </p>
+          <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-slate-200/80 bg-card py-20 shadow-card">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-slate-700">
+                <span className="font-bold text-primary">{lastTicker}</span> 종목을 AI가 분석 중입니다...
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                거시경제, 재무지표, 공시 데이터를 수집하고 있습니다.
+              </p>
+            </div>
           </div>
         )}
 
         {/* ── 분석 에러 ── */}
         {!screenLoading && screenError && (
-          <div className="flex items-start gap-4 rounded-lg border border-rose-100 bg-rose-50 p-5 shadow-sm">
-            <XCircle className="mt-0.5 h-6 w-6 shrink-0 text-rose-500" />
+          <div className="flex items-start gap-4 rounded-xl border border-rose-200 bg-up-soft p-5">
+            <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" />
             <div className="flex-1">
-              <p className="font-semibold text-rose-700">분석 오류</p>
-              <p className="mt-1 text-sm text-rose-600">{screenError}</p>
+              <p className="font-bold text-rose-700">분석 오류</p>
+              <p className="mt-1 text-sm leading-6 text-rose-600">{screenError}</p>
             </div>
             {lastTicker && (
               <Button
                 size="sm"
                 variant="outline"
-                className="shrink-0 border-rose-200 text-rose-700 hover:bg-rose-100"
+                className="shrink-0 rounded-lg border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
                 onClick={() => handleTickerSearch?.(lastTicker)}
               >
                 다시 시도
@@ -435,20 +423,19 @@ export default function Page() {
         {showDashboard && (
           <main className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
             <section className="space-y-6">
-              <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-card shadow-card">
+                <div className="flex flex-col gap-3 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
-                      <BrainCircuit className="h-5 w-5 text-slate-700" />
+                    <h2 className="text-base font-bold text-slate-900">
                       AI 추천 우선순위
                       {dashboardAutoLoading && (
-                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                        <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-slate-300" />
                       )}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-[13px] leading-5 text-slate-500">
                       {dashboardAutoLoading
                         ? "AI가 실시간으로 데이터를 불러오는 중입니다..."
-                        : "관심 종목을 점수와 리스크 기준으로 정렬했습니다."}
+                        : "관심 종목을 점수와 리스크 기준으로 정렬했습니다. 종목을 클릭하면 AI 분석이 시작됩니다."}
                     </p>
                   </div>
                   <StockSearchBox
@@ -473,52 +460,84 @@ export default function Page() {
                           key={item.ticker}
                           type="button"
                           onClick={() => handleTickerSearch?.(item.ticker)}
-                          className="grid w-full gap-4 p-5 text-left transition-colors hover:bg-slate-50 md:grid-cols-[1fr_130px_110px]"
+                          className="group grid w-full grid-cols-[1fr_auto] items-center gap-x-4 px-5 py-4 text-left transition-colors hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_130px_100px_28px]"
                         >
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               {item.name && (
-                                <span className="text-base font-bold text-slate-950">{item.name}</span>
+                                <span className="text-[15px] font-bold text-slate-900">{item.name}</span>
                               )}
-                              <span className={`text-sm font-semibold ${item.name ? "text-slate-400" : "text-base font-bold text-slate-950"}`}>
+                              <span
+                                className={cn(
+                                  "rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold",
+                                  item.name ? "text-slate-500" : "text-slate-900"
+                                )}
+                              >
                                 {item.ticker}
                               </span>
                               {item.tag && (
-                                <Badge variant="outline" className="border-slate-200 bg-white text-slate-500">
+                                <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-500">
                                   {item.tag}
-                                </Badge>
+                                </span>
                               )}
                             </div>
-                            <p className="mt-1 text-xs text-slate-400">
-                              클릭하면 AI 분석을 실행합니다.
-                            </p>
                           </div>
 
-                          <div>
-                            <p className="text-xs font-semibold text-slate-400">현재가</p>
+                          {/* 모바일: 우측 정렬 */}
+                          <div className="flex flex-col items-end justify-center sm:hidden">
                             {item.price ? (
-                              <p className="mt-1 text-sm font-bold text-slate-950">
+                              <p className="text-sm font-bold tabular-nums text-slate-900">
                                 {item.price.toLocaleString("ko-KR")}원
                               </p>
                             ) : dashboardAutoLoading ? (
-                              <Loader2 className="mt-1.5 h-4 w-4 animate-spin text-slate-300" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-300" />
                             ) : (
-                              <p className="mt-1 text-sm text-slate-400">—</p>
+                              <p className="text-sm text-slate-400">—</p>
+                            )}
+                            {item.change && (
+                              <p
+                                className={cn(
+                                  "mt-0.5 text-xs font-bold tabular-nums",
+                                  isPositive ? "text-up" : "text-down"
+                                )}
+                              >
+                                {item.change}
+                              </p>
                             )}
                           </div>
 
-                          <div>
-                            <p className="text-xs font-semibold text-slate-400">등락률</p>
+                          {/* 데스크톱: 현재가 */}
+                          <div className="hidden text-right sm:block">
+                            {item.price ? (
+                              <p className="text-sm font-bold tabular-nums text-slate-900">
+                                {item.price.toLocaleString("ko-KR")}원
+                              </p>
+                            ) : dashboardAutoLoading ? (
+                              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-slate-300" />
+                            ) : (
+                              <p className="text-sm text-slate-400">—</p>
+                            )}
+                          </div>
+
+                          {/* 데스크톱: 등락률 */}
+                          <div className="hidden text-right sm:block">
                             {item.change ? (
-                              <p className={`mt-1 text-sm font-bold ${isPositive ? "text-rose-600" : "text-blue-600"}`}>
+                              <p
+                                className={cn(
+                                  "text-sm font-bold tabular-nums",
+                                  isPositive ? "text-up" : "text-down"
+                                )}
+                              >
                                 {item.change}
                               </p>
                             ) : dashboardAutoLoading ? (
-                              <Loader2 className="mt-1.5 h-4 w-4 animate-spin text-slate-300" />
+                              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-slate-300" />
                             ) : (
-                              <p className="mt-1 text-sm text-slate-400">—</p>
+                              <p className="text-sm text-slate-400">—</p>
                             )}
                           </div>
+
+                          <ChevronRight className="hidden h-4 w-4 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 sm:block" />
                         </button>
                       );
                     })
@@ -526,26 +545,23 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="rounded-xl border border-slate-200/80 bg-card p-5 shadow-card">
                 <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h2 className="flex items-center gap-2 text-base font-bold text-slate-950">
-                      <MessageSquare className="h-5 w-5 text-slate-700" />
-                      AI 종목 추천
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      내 투자 설정 기반으로 AI가 지금 유망한 종목을 추천해 드립니다.
+                    <h2 className="text-base font-bold text-slate-900">AI 종목 추천</h2>
+                    <p className="mt-1 text-[13px] leading-5 text-slate-500">
+                      내 투자 설정 기반으로 AI가 지금 유망한 종목을 추천합니다.
                     </p>
                   </div>
                   <Button
                     onClick={handleRecommend}
                     disabled={recommendLoading}
-                    className="w-full shrink-0 bg-slate-950 text-white hover:bg-slate-800 disabled:opacity-60 sm:w-auto"
+                    className="w-full shrink-0 rounded-lg disabled:opacity-60 sm:w-auto"
                   >
                     {recommendLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Sparkles className="h-4 w-4" />
+                      <Lightbulb className="h-4 w-4" />
                     )}
                     {recommendLoading ? "분석 중..." : "추천 받기"}
                   </Button>
@@ -553,39 +569,38 @@ export default function Page() {
 
                 {recommendation && (
                   <div className="mt-5 space-y-4">
-                    <div className="flex gap-3 rounded-xl bg-slate-950 p-4">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20">
-                        <Sparkles className="h-3.5 w-3.5 text-white" />
-                      </div>
-                      <p className="text-sm leading-6 text-slate-200">{recommendation.message}</p>
+                    <div className="rounded-xl border border-emerald-200/70 bg-accent p-4">
+                      <p className="text-sm leading-6 text-accent-foreground">{recommendation.message}</p>
                     </div>
 
-                    <p className="text-xs text-slate-400 italic">
+                    <p className="text-xs leading-5 text-slate-400">
                       ※ 아래 시그널은 기초 재무 지표(PER·PBR·ROE) 기반 예비 추천입니다. 클릭하면 뉴스·기술 지표를 포함한 종합 AI 분석을 확인할 수 있습니다.
                     </p>
-                    <div className="space-y-2">
+                    <div className="grid gap-2.5 sm:grid-cols-2">
                       {recommendation.stocks.map((stock) => (
                         <button
                           key={stock.ticker}
                           type="button"
                           onClick={() => handleTickerSearch?.(stock.ticker)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:bg-slate-100"
+                          className="group rounded-xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-emerald-300 hover:bg-emerald-50/40"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-bold text-slate-950">{stock.name}</span>
-                              <span className="text-xs text-slate-400">{stock.ticker}</span>
-                              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-sm font-bold text-slate-900">{stock.name}</span>
+                              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
+                                {stock.ticker}
+                              </span>
+                              <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-500">
                                 {stock.sector}
                               </span>
                             </div>
-                            <span className="shrink-0 rounded-full bg-violet-50 border border-violet-200 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
+                            <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-accent-foreground">
                               AI 추천
                             </span>
                           </div>
                           <p className="mt-2 text-xs leading-5 text-slate-500">{stock.reason}</p>
-                          <p className="mt-1.5 text-xs font-medium text-slate-400">
-                            클릭하면 뉴스·기술 지표 포함 종합 시그널(매수/관망 등) 확인 →
+                          <p className="mt-2 text-xs font-semibold text-slate-400 transition-colors group-hover:text-primary">
+                            종합 AI 분석 확인 →
                           </p>
                         </button>
                       ))}
@@ -595,62 +610,67 @@ export default function Page() {
               </div>
             </section>
 
-            <aside className="space-y-6">
-              <div className="rounded-lg border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold">시장 해석</h2>
-                  <LineChart className="h-5 w-5 text-slate-300" />
-                </div>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  {marketInsight?.interpretation ?? "거시경제 데이터를 AI가 분석 중입니다..."}
-                </p>
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-white/10 p-3">
-                    <p className="text-xs text-slate-300">위험 신호</p>
-                    <p className="mt-1 text-base font-bold leading-tight">
-                      {marketInsight?.risk_appetite ?? "—"}
-                    </p>
+            <aside className="space-y-5">
+              {/* 시장 해석 */}
+              <section className="relative overflow-hidden rounded-xl bg-ink p-5 text-white shadow-card">
+                <div className="pointer-events-none absolute inset-0 bg-dotgrid opacity-50" />
+                <div className="relative">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-base font-bold">시장 해석</h2>
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-emerald-200/90">
+                      AI 데일리 브리핑
+                    </span>
                   </div>
-                  <div className="rounded-lg bg-white/10 p-3">
-                    <p className="text-xs text-slate-300">추천 비중</p>
-                    <p className="mt-1 text-xl font-bold">
-                      {marketInsight ? `${marketInsight.recommended_weight}%` : "—"}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-lg bg-white/10 p-3">
-                  <p className="text-xs text-slate-300 mb-2">추천 섹터</p>
-                  {marketInsight?.sectors?.length ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {[...marketInsight.sectors]
-                        .sort((a, b) => b.score - a.score)
-                        .slice(0, 4)
-                        .map(({ name, score }) => (
-                          <span
-                            key={name}
-                            className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white"
-                          >
-                            {name} {score}
-                          </span>
-                        ))}
+                  <p className="mt-3 min-h-[84px] text-[13px] leading-6 text-slate-200/90">
+                    {marketInsight?.interpretation ?? "거시경제 데이터를 AI가 분석 중입니다..."}
+                  </p>
+                  <div className="mt-5 grid grid-cols-2 gap-2.5">
+                    <div className="rounded-xl bg-white/[0.08] p-3">
+                      <p className="text-[11px] font-medium text-slate-300/80">위험 신호</p>
+                      <p className="mt-1 text-[15px] font-bold leading-tight">
+                        {marketInsight?.risk_appetite ?? "—"}
+                      </p>
                     </div>
-                  ) : (
-                    <p className="text-sm text-slate-400">—</p>
+                    <div className="rounded-xl bg-white/[0.08] p-3">
+                      <p className="text-[11px] font-medium text-slate-300/80">추천 비중</p>
+                      <p className="mt-1 text-lg font-bold tabular-nums">
+                        {marketInsight ? `${marketInsight.recommended_weight}%` : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 rounded-xl bg-white/[0.08] p-3">
+                    <p className="mb-2 text-[11px] font-medium text-slate-300/80">추천 섹터</p>
+                    {marketInsight?.sectors?.length ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...marketInsight.sectors]
+                          .sort((a, b) => b.score - a.score)
+                          .slice(0, 4)
+                          .map(({ name, score }) => (
+                            <span
+                              key={name}
+                              className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-white"
+                            >
+                              {name}{" "}
+                              <span className="tabular-nums text-emerald-300/90">{score}</span>
+                            </span>
+                          ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">—</p>
+                    )}
+                  </div>
+                  {marketInsight?.generated_at && (
+                    <p className="mt-3 text-[11px] text-slate-400">
+                      AI 분석 기준: {new Date(marketInsight.generated_at).toLocaleDateString("ko-KR")}
+                    </p>
                   )}
                 </div>
-                {marketInsight?.generated_at && (
-                  <p className="mt-3 text-xs text-slate-500">
-                    AI 분석 기준: {new Date(marketInsight.generated_at).toLocaleDateString("ko-KR")}
-                  </p>
-                )}
-              </div>
+              </section>
 
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
-                  <TrendingUp className="h-5 w-5" />
-                  실시간 시장 뉴스
-                </h2>
-                <div className="mt-4 space-y-2">
+              {/* 실시간 시장 뉴스 */}
+              <div className="rounded-xl border border-slate-200/80 bg-card p-5 shadow-card">
+                <h2 className="text-base font-bold text-slate-900">실시간 시장 뉴스</h2>
+                <div className="mt-3 space-y-1">
                   {marketNews.length > 0 ? (
                     marketNews.map((article, i) => (
                       <a
@@ -658,50 +678,55 @@ export default function Page() {
                         href={article.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex gap-3 rounded-lg bg-slate-50 p-3 hover:bg-slate-100 transition-colors"
+                        className="group flex items-start gap-3 rounded-lg p-2.5 transition-colors hover:bg-slate-50"
                       >
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                        <div className="min-w-0">
-                          <p className="text-sm leading-5 text-slate-700 line-clamp-2">{article.title}</p>
-                          <p className="mt-1 text-xs text-slate-400">{article.source}</p>
+                        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 transition-colors group-hover:bg-primary" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-medium leading-6 text-slate-700 line-clamp-2 group-hover:text-slate-900">
+                            {article.title}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-400">{article.source}</p>
                         </div>
+                        <ArrowUpRight className="mt-1 h-3.5 w-3.5 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100" />
                       </a>
                     ))
                   ) : (
                     signals.map((signal) => (
-                      <div key={signal} className="flex gap-3 rounded-lg bg-slate-50 p-3">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                        <p className="text-sm leading-6 text-slate-600">{signal}</p>
+                      <div key={signal} className="flex items-start gap-3 rounded-lg p-2.5">
+                        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                        <p className="text-[13px] leading-6 text-slate-600">{signal}</p>
                       </div>
                     ))
                   )}
                 </div>
               </div>
 
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
-                  <Layers className="h-5 w-5" />
-                  섹터 탐색
-                </h2>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {Object.keys(SECTOR_STOCKS).map((sector) => (
-                    <button
-                      key={sector}
-                      onClick={() => setSelectedSector((s) => (s === sector ? null : sector))}
-                      className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        selectedSector === sector
-                          ? "bg-slate-950 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {sector}
-                      {selectedSector === sector ? (
-                        <ChevronDown className="h-3 w-3" />
-                      ) : (
-                        <ChevronRight className="h-3 w-3" />
-                      )}
-                    </button>
-                  ))}
+              {/* 섹터 탐색 */}
+              <div className="rounded-xl border border-slate-200/80 bg-card p-5 shadow-card">
+                <h2 className="text-base font-bold text-slate-900">섹터 탐색</h2>
+                <div className="mt-3.5 flex flex-wrap gap-1.5">
+                  {Object.keys(SECTOR_STOCKS).map((sector) => {
+                    const selected = selectedSector === sector;
+                    return (
+                      <button
+                        key={sector}
+                        onClick={() => setSelectedSector((s) => (s === sector ? null : sector))}
+                        className={cn(
+                          "flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                          selected
+                            ? "border-primary bg-primary text-white shadow-card"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                        )}
+                      >
+                        {sector}
+                        {selected ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
                 {selectedSector && (
                   <div className="mt-3 space-y-1">
@@ -709,28 +734,21 @@ export default function Page() {
                       <button
                         key={ticker}
                         onClick={() => handleTickerSearch?.(ticker)}
-                        className="flex w-full items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100"
+                        className="group flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-slate-950">{name}</span>
-                          <span className="text-xs text-slate-400">{ticker}</span>
+                          <span className="text-sm font-semibold text-slate-900">{name}</span>
+                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
+                            {ticker}
+                          </span>
                         </div>
-                        <span className="text-xs font-medium text-slate-400">AI 분석 →</span>
+                        <span className="text-xs font-semibold text-slate-400 transition-colors group-hover:text-primary">
+                          AI 분석 →
+                        </span>
                       </button>
                     ))}
                   </div>
                 )}
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
-                  <BarChart3 className="h-5 w-5" />
-                  다음 액션
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-500">
-                  좌측 사이드바 검색창에 종목 코드를 입력하면 AI가 실시간으로 분석 리포트를
-                  생성합니다.
-                </p>
               </div>
             </aside>
           </main>
